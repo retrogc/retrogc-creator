@@ -311,7 +311,18 @@ public static class Flasher
                 var volume = CreateFile($@"\\.\{letter}:", GenericRead | GenericWrite, ShareReadWrite, IntPtr.Zero,
                     OpenExisting, 0, IntPtr.Zero);
                 if (volume.IsInvalid)
-                    continue;
+                {
+                    // Read-only volumes (a RETROGC card: GPT read-only attribute) refuse write access,
+                    // but a read handle can still lock and dismount them.
+                    volume.Dispose();
+                    volume = CreateFile($@"\\.\{letter}:", GenericRead, ShareReadWrite, IntPtr.Zero,
+                        OpenExisting, 0, IntPtr.Zero);
+                    if (volume.IsInvalid)
+                    {
+                        volume.Dispose();
+                        continue;
+                    }
+                }
 
                 if (!IsOnDisk(volume, number))
                 {

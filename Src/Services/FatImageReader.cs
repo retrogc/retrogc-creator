@@ -9,13 +9,12 @@ using System.Threading;
 namespace RetroGcCreator.Services;
 
 /// <summary>
-/// Reads the files of a FAT12/16/32 volume in a raw disk image (MBR partition or whole-disk volume).
+/// Reads the files of a FAT12/16/32 volume in a raw disk image (GPT partition, or whole-disk volume). MBR partition tables aren't supported.
 /// Counterpart of <see cref="Fat32ImageWriter"/>, also reads images made by mkfs.fat / mtools.
 /// </summary>
 public sealed class FatImageReader
 {
     private const byte AttrVolumeId = 0x08, AttrDirectory = 0x10, AttrLongName = 0x0F;
-    private static readonly byte[] FatPartitionTypes = [0x01, 0x04, 0x06, 0x0B, 0x0C, 0x0E];
 
     private readonly Stream _image;
     private readonly long _volumeOffset;
@@ -42,7 +41,7 @@ public sealed class FatImageReader
         _image = image;
         var sector0 = ReadAt(0, 512);
 
-        _volumeOffset = FindVolume(sector0);
+        _volumeOffset = FindVolume(sector0, ReadAt);
         var boot = _volumeOffset == 0 ? sector0 : ReadAt(_volumeOffset, 512);
 
         if (Encoding.ASCII.GetString(boot, 3, 8) == "EXFAT   ")
@@ -86,7 +85,7 @@ public sealed class FatImageReader
 
     // ------------------------------------------------------------ volume
 
-    private static long FindVolume(byte[] sector0)
+    private static long FindVolume(byte[] sector0, Func<long, int, byte[]> readAt)
     {
         if (sector0[510] != 0x55 || sector0[511] != 0xAA)
             throw new InvalidDataException("This file isn't a disk image (no boot signature).");
@@ -99,16 +98,44 @@ public sealed class FatImageReader
         if (isBootSector || exfat)
             return 0;
 
+        // Card images are GPT: a protective MBR entry (0xEE), the real table follows.
         for (var i = 0; i < 4; i++)
         {
-            var entry = sector0.AsSpan(446 + i * 16, 16);
-            var start = BinaryPrimitives.ReadUInt32LittleEndian(entry[8..]);
-            var count = BinaryPrimitives.ReadUInt32LittleEndian(entry[12..]);
-            if (count == 0 || start == 0)
+            if (sector0[446 + i * 16 + 4] == 0xEE)
+                return FindGptVolume(readAt);
+        }
+
+        throw new InvalidDataException(
+            "This image has an MBR partition table, which isn't supported: card images are GPT. " +
+            "Rebuild it from its card folder with this version.");
+    }
+
+    /// <summary>Start of the first basic data partition of the GPT at LBA 1 (512 byte sectors).</summary>
+    private static long FindGptVolume(Func<long, int, byte[]> readAt)
+    {
+        var header = readAt(512, 512);
+        if (Encoding.ASCII.GetString(header, 0, 8) != "EFI PART")
+            throw new InvalidDataException("Invalid GPT partition table (no header at sector 1).");
+
+        var entriesLba = BinaryPrimitives.ReadUInt64LittleEndian(header.AsSpan(72));
+        var entryCount = BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(80));
+        var entrySize = BinaryPrimitives.ReadUInt32LittleEndian(header.AsSpan(84));
+        if (entriesLba < 2 || entriesLba > int.MaxValue / 512 || entryCount is 0 or > 1024 ||
+            entrySize < 128 || entrySize > 4096 || entrySize % 8 != 0)
+            throw new InvalidDataException("Invalid GPT partition table.");
+
+        var entries = readAt((long)entriesLba * 512, (int)(entryCount * entrySize));
+        var basicData = Fat32ImageWriter.BasicDataPartitionType.ToByteArray();
+        for (var i = 0; i < entryCount; i++)
+        {
+            var entry = entries.AsSpan((int)(i * entrySize), (int)entrySize);
+            if (!entry[..16].SequenceEqual(basicData))
                 continue;
 
-            if (Array.IndexOf(FatPartitionTypes, entry[4]) >= 0 || entry[4] == 0x07)
-                return start * 512L;
+            var start = BinaryPrimitives.ReadUInt64LittleEndian(entry[32..]);
+            if (start == 0 || start > long.MaxValue / 512)
+                continue;
+            return (long)start * 512;
         }
 
         throw new InvalidDataException("No FAT partition found in this image.");

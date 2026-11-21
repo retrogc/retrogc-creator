@@ -10,11 +10,14 @@ using System.Threading.Tasks;
 namespace RetroGcCreator.Services;
 
 /// <summary>
-/// Writes a raw disk image: an MBR partition table with one FAT32 partition (type 0x0C, starting at
-/// 1 MiB) holding a copy of a folder. Same layout as <c>retrogc-image.sh --build</c>
-/// (parted msdos + mkfs.fat -F 32 + mcopy), without any external tool, so it runs on Windows too.
+/// Writes a raw disk image: a GPT partition table with one FAT32 partition (Microsoft basic data,
+/// read-only attribute, from 1 MiB to 1 MiB before the end) holding a copy of a folder. Same layout as
+/// <c>retrogc-image.sh --build</c> (sfdisk + mkfs.fat -F 32 + mcopy), without any external tool,
+/// so it runs on Windows too.
 /// </summary>
 /// <remarks>
+/// The read-only GPT attribute (bit 60) makes Windows mount the card read-only: it never writes to it,
+/// so the volume is never left dirty ("Scan and fix" prompt) when the card is pulled.
 /// Files are written contiguously, long file names are always kept (VFAT LFN entries), and the volume
 /// label is stored both in the boot sector and in the root directory: Windows and udev read the latter.
 /// </remarks>
@@ -22,6 +25,17 @@ public static class Fat32ImageWriter
 {
     public const int SectorSize = 512;
     public const long PartitionStartSector = 2048; // 1 MiB
+    public const long EndGapSectors = 2048;        // 1 MiB, holds the backup GPT
+
+    /// <summary>GPT partition type "Microsoft basic data" (FAT / exFAT / NTFS).</summary>
+    public static readonly Guid BasicDataPartitionType = new("EBD0A0A2-B9E5-4433-87C0-68B6B72699C7");
+
+    /// <summary>GPT basic data partition attribute: read-only.</summary>
+    public const ulong GptAttributeReadOnly = 1UL << 60;
+
+    private const int GptEntryCount = 128;
+    private const int GptEntrySize = 128;
+    private const int GptEntrySectors = GptEntryCount * GptEntrySize / SectorSize; // 32
 
     private const int ReservedSectors = 32;
     private const int FatCount = 2;
@@ -114,7 +128,12 @@ public static class Fat32ImageWriter
             1 << 20, FileOptions.Asynchronous);
         image.SetLength(layout.TotalSectors * SectorSize);
 
-        await WriteAtAsync(image, 0, BuildMbr(layout), ct);
+        await WriteAtAsync(image, 0, BuildProtectiveMbr(layout), ct);
+        var gpt = BuildGpt(layout, label);
+        await WriteAtAsync(image, 1 * SectorSize, gpt.PrimaryHeader, ct);
+        await WriteAtAsync(image, 2 * SectorSize, gpt.Entries, ct);
+        await WriteAtAsync(image, (layout.TotalSectors - 1 - GptEntrySectors) * SectorSize, gpt.Entries, ct);
+        await WriteAtAsync(image, (layout.TotalSectors - 1) * SectorSize, gpt.BackupHeader, ct);
 
         var boot = BuildBootSector(layout, label, volumeId);
         var fsInfo = BuildFsInfo(layout.ClusterCount - (nextCluster - 2), nextCluster);
@@ -267,7 +286,7 @@ public static class Fat32ImageWriter
     private static Layout ComputeLayout(long imageSize)
     {
         var totalSectors = imageSize / SectorSize;
-        var partitionSectors = totalSectors - PartitionStartSector;
+        var partitionSectors = totalSectors - PartitionStartSector - EndGapSectors;
         var partitionBytes = partitionSectors * SectorSize;
 
         // Microsoft's FAT32 cluster size table (keeps the cluster count valid for FAT32).
@@ -298,22 +317,85 @@ public static class Fat32ImageWriter
 
     // ------------------------------------------------------------ sectors
 
-    private static byte[] BuildMbr(Layout layout)
+    /// <summary>Protective MBR: one 0xEE entry covering the whole disk (UEFI spec 5.2.3).</summary>
+    private static byte[] BuildProtectiveMbr(Layout layout)
     {
         var mbr = new byte[SectorSize];
-        BinaryPrimitives.WriteUInt32LittleEndian(mbr.AsSpan(440), (uint)Random.Shared.Next()); // disk signature
 
         var entry = mbr.AsSpan(446, 16);
         entry[0] = 0x00; // not bootable
-        WriteChs(entry[1..4], PartitionStartSector);
-        entry[4] = 0x0C; // FAT32 (LBA)
-        WriteChs(entry[5..8], PartitionStartSector + layout.PartitionSectors - 1);
-        BinaryPrimitives.WriteUInt32LittleEndian(entry[8..], (uint)PartitionStartSector);
-        BinaryPrimitives.WriteUInt32LittleEndian(entry[12..], (uint)layout.PartitionSectors);
+        entry[1] = 0x00; entry[2] = 0x02; entry[3] = 0x00; // CHS of LBA 1
+        entry[4] = 0xEE; // GPT protective
+        WriteChs(entry[5..8], layout.TotalSectors - 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(entry[8..], 1);
+        BinaryPrimitives.WriteUInt32LittleEndian(entry[12..], (uint)Math.Min(layout.TotalSectors - 1, uint.MaxValue));
 
         mbr[510] = 0x55;
         mbr[511] = 0xAA;
         return mbr;
+    }
+
+    private sealed record Gpt(byte[] PrimaryHeader, byte[] Entries, byte[] BackupHeader);
+
+    /// <summary>GPT headers and entry array: one read-only basic data partition named after the label.</summary>
+    private static Gpt BuildGpt(Layout layout, string label)
+    {
+        var lastSector = layout.TotalSectors - 1;
+
+        var entries = new byte[GptEntryCount * GptEntrySize];
+        var e = entries.AsSpan(0, GptEntrySize);
+        BasicDataPartitionType.ToByteArray().CopyTo(e);           // GUIDs are stored mixed-endian, as .NET does
+        Guid.NewGuid().ToByteArray().CopyTo(e[16..]);
+        BinaryPrimitives.WriteUInt64LittleEndian(e[32..], (ulong)PartitionStartSector);
+        BinaryPrimitives.WriteUInt64LittleEndian(e[40..], (ulong)(PartitionStartSector + layout.PartitionSectors - 1));
+        BinaryPrimitives.WriteUInt64LittleEndian(e[48..], GptAttributeReadOnly);
+        Encoding.Unicode.GetBytes(label.Length > 36 ? label[..36] : label).CopyTo(e[56..]);
+        var entriesCrc = Crc32(entries);
+
+        var diskGuid = Guid.NewGuid();
+        return new Gpt(
+            Header(myLba: 1, alternateLba: lastSector, entriesLba: 2),
+            entries,
+            Header(myLba: lastSector, alternateLba: 1, entriesLba: lastSector - GptEntrySectors));
+
+        byte[] Header(long myLba, long alternateLba, long entriesLba)
+        {
+            const int headerSize = 92;
+            var header = new byte[SectorSize];
+            var h = header.AsSpan();
+            Encoding.ASCII.GetBytes("EFI PART").CopyTo(h);
+            BinaryPrimitives.WriteUInt32LittleEndian(h[8..], 0x00010000); // revision 1.0
+            BinaryPrimitives.WriteUInt32LittleEndian(h[12..], headerSize);
+            // header CRC (16) computed last, reserved (20) = 0
+            BinaryPrimitives.WriteUInt64LittleEndian(h[24..], (ulong)myLba);
+            BinaryPrimitives.WriteUInt64LittleEndian(h[32..], (ulong)alternateLba);
+            BinaryPrimitives.WriteUInt64LittleEndian(h[40..], 2 + GptEntrySectors);              // first usable
+            BinaryPrimitives.WriteUInt64LittleEndian(h[48..], (ulong)(lastSector - 1 - GptEntrySectors)); // last usable
+            diskGuid.ToByteArray().CopyTo(h[56..]);
+            BinaryPrimitives.WriteUInt64LittleEndian(h[72..], (ulong)entriesLba);
+            BinaryPrimitives.WriteUInt32LittleEndian(h[80..], GptEntryCount);
+            BinaryPrimitives.WriteUInt32LittleEndian(h[84..], GptEntrySize);
+            BinaryPrimitives.WriteUInt32LittleEndian(h[88..], entriesCrc);
+            BinaryPrimitives.WriteUInt32LittleEndian(h[16..], Crc32(header.AsSpan(0, headerSize)));
+            return header;
+        }
+    }
+
+    private static readonly uint[] Crc32Table = Enumerable.Range(0, 256).Select(n =>
+    {
+        var c = (uint)n;
+        for (var k = 0; k < 8; k++)
+            c = (c & 1) != 0 ? 0xEDB88320 ^ (c >> 1) : c >> 1;
+        return c;
+    }).ToArray();
+
+    /// <summary>CRC-32 (IEEE 802.3), the one GPT uses.</summary>
+    internal static uint Crc32(ReadOnlySpan<byte> data)
+    {
+        var crc = 0xFFFFFFFF;
+        foreach (var b in data)
+            crc = Crc32Table[(crc ^ b) & 0xFF] ^ (crc >> 8);
+        return ~crc;
     }
 
     private static void WriteChs(Span<byte> target, long lba)

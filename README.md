@@ -24,7 +24,7 @@ A desktop app to create and edit game cards without writing JSON or using the co
   RetroArch core / Recalbox system / ROMs / BIOS files, and the optional MiSTer FPGA section.
 - 📥 **Add the files**: pick a ROM, BIOS, core or cover anywhere on your disk and it is copied into
   the card at the right place. Missing files are listed, one click fills them.
-- 💿 **Build the image**: a `.img.xz` FAT32 image labelled `RETROGC`, the same as
+- 💿 **Build the image**: a `.img.xz` FAT32 image labelled `RETROGC` on a read-only GPT partition, the same as
   `retrogc-image.sh --build`, ready for balenaEtcher.
 - 🔌 **Write to USB**: flash the card straight to a USB stick.
 
@@ -63,7 +63,7 @@ or downloaded from a release. Then choose:
 | 📂 **Extract to a folder…** | The card is unpacked into a new folder (named after the image) and opens like any card folder: edit it, add files, rebuild it. |
 | 👀 **Just view** | The card is unpacked to a temporary folder and opens **read-only**. **Write to USB** flashes the image as is (no rebuild), and **Extract…** turns it into an editable copy. The temporary folder is deleted when you close the card. |
 
-FAT12, FAT16 and FAT32 images are supported (with or without a partition table). Installer cards
+FAT12, FAT16 and FAT32 images are supported (GPT or no partition table). Installer cards
 (exFAT) aren't game cards and can't be opened.
 
 The `.rgc` format itself is documented in the
