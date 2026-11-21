@@ -32,24 +32,39 @@ Fields the app doesn't know are kept when saving, so cards stay compatible with 
 
 ## 🖥️ Platforms
 
-| | Platform | Build image | Write to USB |
-|:-:|---|:-:|---|
-| 🪟 | **Windows** x64 | ✅ | ✅ asks for administrator rights (UAC) |
-| 🐧 | **Linux** x64 | ✅ | ✅ asks for your password (polkit / `pkexec`), needs `udisksctl` |
+| | Platform | Build image | Open image | Write to USB |
+|:-:|---|:-:|:-:|---|
+| 🪟 | **Windows** x64 | ✅ | ✅ | ✅ asks for administrator rights (UAC) |
+| 🐧 | **Linux** x64 | ✅ | ✅ | ✅ asks for your password (polkit / `pkexec`), needs `udisksctl` |
 
-Images are built entirely by the app (its own FAT32 writer and a bundled xz library): no `mkfs`,
-`mtools` or other tools are needed, on either system.
+Images are built and read entirely by the app (its own FAT writer / reader and a bundled xz
+library): no `mkfs`, `mtools` or other tools are needed, on either system.
 
 ## 🚀 Usage
 
 1. Download `retrogc-creator` for your system from the
    [**releases page**](https://github.com/retrogc/retrogc-creator/releases) and run it
    (on Linux: `chmod +x retrogc-creator` first).
-2. **Open folder** (a card folder with its `.rgc`) or **New card** (an empty folder).
+2. **Open folder** (a card folder with its `.rgc`), **Open image** (a card `.img.xz`, see below) or
+   **New card** (an empty folder).
 3. Fill in the fields. Use **Choose file…** / **Add files…** to bring the game files in: they are
    copied into the card (`games/<system>/` for ROMs and BIOS, `_Console/` or `_Arcade/` for MiSTer).
 4. When the sidebar says **Ready to build**, press **Build image** (saves the card first), then
    **Write to USB**, or flash the `.img.xz` with [balenaEtcher](https://etcher.balena.io/).
+
+### 💽 Opening a card image
+
+**Open image** reads any game card image (`.img.xz` or raw `.img`), whether it was made by the
+creator, by [`retrogc-image.sh`](https://github.com/retrogc/retrogc-launcher/blob/main/Platforms/Linux/retrogc-image.sh)
+or downloaded from a release. Then choose:
+
+| Choice | What happens |
+|---|---|
+| 📂 **Extract to a folder…** | The card is unpacked into a new folder (named after the image) and opens like any card folder: edit it, add files, rebuild it. |
+| 👀 **Just view** | The card is unpacked to a temporary folder and opens **read-only**. **Write to USB** flashes the image as is (no rebuild), and **Extract…** turns it into an editable copy. The temporary folder is deleted when you close the card. |
+
+FAT12, FAT16 and FAT32 images are supported (with or without a partition table). Installer cards
+(exFAT) aren't game cards and can't be opened.
 
 The `.rgc` format itself is documented in the
 [launcher README](https://github.com/retrogc/retrogc-launcher#-the-rgc-card-format).
