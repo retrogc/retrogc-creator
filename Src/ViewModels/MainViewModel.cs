@@ -571,12 +571,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     // ------------------------------------------------------------ helpers
 
-    private string ImageName()
-    {
-        var platform = Sanitize((Editor.System.Length > 0 ? Editor.System : Editor.Platform).ToLowerInvariant());
-        var folder = Sanitize(CardFolderName.ToLowerInvariant());
-        return platform.Length > 0 && !folder.StartsWith(platform, StringComparison.Ordinal) ? $"{platform}-{folder}" : folder;
-    }
+    /// <summary>Suggested image name: the card folder name (an extracted image keeps its original name).</summary>
+    private string ImageName() => Sanitize(CardFolderName);
 
     private static string Sanitize(string name)
     {
