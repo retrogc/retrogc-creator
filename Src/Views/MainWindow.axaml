@@ -134,6 +134,12 @@
                         </StackPanel>
                     </Button>
                     <Button Classes="tool ghost" Content="Open .rgc" Command="{Binding OpenDefinitionCommand}" />
+                    <Button Classes="tool ghost" Command="{Binding OpenImageCommand}" ToolTip.Tip="Open a card image (.img.xz): view it or extract it">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconArchive}" Width="14" Height="14" />
+                            <TextBlock Text="Open image" />
+                        </StackPanel>
+                    </Button>
                     <Button Classes="tool ghost" Command="{Binding SaveCommand}" HotKey="Ctrl+S" ToolTip.Tip="Save the .rgc (Ctrl+S)">
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <PathIcon Data="{StaticResource IconCheck}" Width="14" Height="14" />
@@ -165,10 +171,11 @@
             <Image Source="/Assets/Icons/retrogc.png" Width="110" Height="110" HorizontalAlignment="Center" Opacity="0.9" />
             <TextBlock Text="Make a game card" Classes="h1" HorizontalAlignment="Center" />
             <TextBlock Classes="body" TextAlignment="Center" TextWrapping="Wrap"
-                       Text="Open a card folder to edit it (every field is filled from its .rgc), or start a new card in an empty folder. Add the game files, then build the image and write it to a USB stick." />
+                       Text="Open a card folder to edit it (every field is filled from its .rgc), open a card image (.img.xz) to view or extract it, or start a new card in an empty folder. Add the game files, then build the image and write it to a USB stick." />
             <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" Margin="0,8,0,0">
                 <Button Classes="primary" Content="New card" Command="{Binding NewCardCommand}" />
                 <Button Content="Open card folder" Command="{Binding OpenFolderCommand}" />
+                <Button Content="Open card image" Command="{Binding OpenImageCommand}" />
             </StackPanel>
         </StackPanel>
 
@@ -191,7 +198,19 @@
                             </Panel>
                         </Border>
                         <Button Content="Choose cover image…" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                Command="{Binding Editor.Image.BrowseCommand}" />
+                                Command="{Binding Editor.Image.BrowseCommand}" IsEnabled="{Binding IsEditable}" />
+
+                        <Border Classes="banner warning" IsVisible="{Binding IsReadOnly}">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                    <PathIcon Data="{StaticResource IconInfo}" VerticalAlignment="Top" />
+                                    <TextBlock Grid.Column="1" TextWrapping="Wrap"
+                                               Text="Viewing a card image: changes can't be saved. Extract it to edit and rebuild it." />
+                                </Grid>
+                                <Button Classes="primary" Content="Extract…" Command="{Binding ExtractCommand}"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+                            </StackPanel>
+                        </Border>
 
                         <StackPanel Spacing="4">
                             <TextBlock Text="CARD FOLDER" Classes="label" />
@@ -224,7 +243,7 @@
 
             <!-- Editor -->
             <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Margin="32,26,32,32" Spacing="20" MaxWidth="980">
+                <StackPanel Margin="32,26,32,32" Spacing="20" MaxWidth="980" IsEnabled="{Binding IsEditable}">
 
                     <!-- General -->
                     <Border Classes="card">
@@ -352,13 +371,13 @@
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
                 <TextBlock Classes="status" Classes.error="{Binding StatusIsError}" Text="{Binding StatusMessage}"
                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="12"
-                           IsVisible="{Binding !IsBuilding}" ToolTip.Tip="{Binding StatusMessage}" />
-                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" IsVisible="{Binding IsBuilding}">
-                    <TextBlock Text="{Binding BuildStatus}" VerticalAlignment="Center" FontSize="12" />
-                    <ProgressBar Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding BuildPercent}" VerticalAlignment="Center" />
+                           IsVisible="{Binding !IsBusy}" ToolTip.Tip="{Binding StatusMessage}" />
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" IsVisible="{Binding IsBusy}">
+                    <TextBlock Text="{Binding BusyStatus}" VerticalAlignment="Center" FontSize="12" />
+                    <ProgressBar Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding BusyPercent}" VerticalAlignment="Center" />
                 </Grid>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                    <Button Classes="small" Content="Cancel" Command="{Binding CancelBuildCommand}" IsVisible="{Binding IsBuilding}" />
+                    <Button Classes="small" Content="Cancel" Command="{Binding CancelBusyCommand}" IsVisible="{Binding IsBusy}" />
                     <Button Classes="small ghost" Content="Show image" Command="{Binding ShowImageCommand}"
                             IsVisible="{Binding LastImage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
                 </StackPanel>

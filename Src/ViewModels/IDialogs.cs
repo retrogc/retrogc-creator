@@ -18,6 +18,9 @@ public interface IDialogs
 
     Task ShowErrorAsync(string title, string message);
 
+    /// <summary>Several choices; returns the index of the chosen one, or -1 when the window is closed.</summary>
+    Task<int> ChooseAsync(string title, string message, string[] options);
+
     /// <summary>Opens the "write to USB" window for an image.</summary>
     Task ShowFlashAsync(string image);
 }

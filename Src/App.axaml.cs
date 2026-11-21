@@ -15,6 +15,7 @@ public class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            RetroGcCreator.ViewModels.MainViewModel.CleanupStaleViews();
             var window = new MainWindow();
             desktop.MainWindow = window;
 

@@ -18,6 +18,8 @@ A desktop app to create and edit game cards without writing JSON or using the co
 
 - 📂 **Open a card folder** (or a `.rgc` file): every field is filled from its definition.
 - 🆕 **Start a new card** in an empty folder.
+- 💽 **Open a card image** (`.img.xz` or `.img`): just view it (read-only), or extract it to a folder
+  to edit and rebuild it. Write to USB works straight from a viewed image.
 - ✏️ **Edit every field**: name, description, platform, year, developer, genre, players, cover,
   RetroArch core / Recalbox system / ROMs / BIOS files, and the optional MiSTer FPGA section.
 - 📥 **Add the files**: pick a ROM, BIOS, core or cover anywhere on your disk and it is copied into
@@ -57,6 +59,7 @@ The `.rgc` format itself is documented in the
 ```bash
 retrogc-creator <card folder | card.rgc>                  # open a card
 retrogc-creator --build <card folder> <output.img.xz>     # build an image without the window
+retrogc-creator --extract <image.img.xz> <folder>         # unpack a card image without the window
 ```
 
 ## 🧑‍💻 Building from source
@@ -72,7 +75,8 @@ dotnet run
 ```text
 Src/
 ├── 📁 Models/        CardDocument: the .rgc as a JSON tree (keeps unknown fields)
-├── 📁 Services/      Fat32ImageWriter, ImageBuilder (xz), CardFolder, UsbDrives, Flasher
+├── 📁 Services/      Fat32ImageWriter / FatImageReader, ImageBuilder / ImageExtractor (xz),
+│                     CardFolder, UsbDrives, Flasher
 ├── 📁 ViewModels/    MVVM view models (CommunityToolkit.Mvvm)
 ├── 📁 Views/         Main window, USB writer window
 └── 📁 Styles/        Theme shared with the launcher

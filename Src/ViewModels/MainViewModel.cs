@@ -24,7 +24,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private readonly IDialogs _dialogs;
     private readonly CardContext _context;
     private CardDocument? _document;
-    private CancellationTokenSource? _buildCts;
+    private CancellationTokenSource? _busyCts;
+
+    /// <summary>Temporary folder of a card image opened with "Just view" (deleted when closed).</summary>
+    private string? _viewFolder;
+
+    private static string ViewRoot => Path.Combine(Path.GetTempPath(), "retrogc-creator");
 
     public MainViewModel(IDialogs dialogs)
     {
@@ -36,7 +41,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             RefreshChecks();
         }, RefreshChecks);
         Editor = new CardEditorViewModel(_context);
-        Editor.Image.PropertyChanged += (_, _) => UpdateCover();
+        Editor.Image.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(PathEntryViewModel.Path))
+                UpdateCover();
+        };
     }
 
     public CardEditorViewModel Editor { get; }
@@ -47,6 +56,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(HasCard), nameof(WindowTitle), nameof(CardFolderName))]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand), nameof(BuildCommand), nameof(FlashCommand), nameof(OpenCardFolderCommand))]
     public partial string CardRoot { get; set; } = string.Empty;
+
+    /// <summary>A card image opened with "Just view": nothing can be saved, "Extract…" makes an editable copy.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(WindowTitle), nameof(IsEditable))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand), nameof(BuildCommand), nameof(ExtractCommand))]
+    public partial bool IsReadOnly { get; set; }
+
+    public bool IsEditable => !IsReadOnly;
+
+    /// <summary>The image being viewed (read-only mode).</summary>
+    [ObservableProperty] public partial string ViewedImage { get; set; } = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(WindowTitle), nameof(DefinitionName))]
@@ -60,9 +80,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string CardFolderName => Path.GetFileName(Path.TrimEndingDirectorySeparator(CardRoot));
     public string DefinitionName => Path.GetFileName(DefinitionPath);
 
-    public string WindowTitle => HasCard
-        ? $"{(IsDirty ? "● " : string.Empty)}{CardFolderName} — Retro Game Card Creator"
-        : "Retro Game Card Creator";
+    public string WindowTitle => !HasCard
+        ? "Retro Game Card Creator"
+        : IsReadOnly
+            ? $"{Path.GetFileName(ViewedImage)} (read-only) — Retro Game Card Creator"
+            : $"{(IsDirty ? "● " : string.Empty)}{CardFolderName} — Retro Game Card Creator";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasCover))]
@@ -79,18 +101,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(BuildCommand), nameof(FlashCommand), nameof(SaveCommand),
-        nameof(NewCardCommand), nameof(OpenFolderCommand), nameof(OpenDefinitionCommand))]
-    public partial bool IsBuilding { get; set; }
+        nameof(NewCardCommand), nameof(OpenFolderCommand), nameof(OpenDefinitionCommand),
+        nameof(OpenImageCommand), nameof(ExtractCommand))]
+    public partial bool IsBusy { get; set; }
 
-    [ObservableProperty] public partial double BuildPercent { get; set; }
-    [ObservableProperty] public partial string BuildStatus { get; set; } = string.Empty;
+    [ObservableProperty] public partial double BusyPercent { get; set; }
+    [ObservableProperty] public partial string BusyStatus { get; set; } = string.Empty;
     [ObservableProperty] public partial string LastImage { get; set; } = string.Empty;
     [ObservableProperty] public partial string StatusMessage { get; set; } = "Open a card folder or create a new card.";
     [ObservableProperty] public partial bool StatusIsError { get; set; }
 
     // ------------------------------------------------------------ open / new / save
 
-    private bool CanChangeCard() => !IsBuilding;
+    private bool CanChangeCard() => !IsBusy;
 
     [RelayCommand(CanExecute = nameof(CanChangeCard))]
     private async Task NewCardAsync()
@@ -153,24 +176,47 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Opens a card definition; its folder is the card root.</summary>
-    public void Open(string definition)
+    public void Open(string definition) => Open(definition, viewedImage: null);
+
+    private bool Open(string definition, string? viewedImage)
     {
         try
         {
             var document = CardDocument.Load(definition);
             _document = document;
             LoadDocument(Path.GetDirectoryName(Path.GetFullPath(definition))!, Path.GetFullPath(definition), document);
-            SetStatus($"Opened {definition}");
+
+            IsReadOnly = viewedImage is not null;
+            ViewedImage = viewedImage ?? string.Empty;
+            if (viewedImage is not null)
+            {
+                // "Write to USB" flashes the viewed image as is.
+                LastImage = viewedImage;
+                SetStatus($"Viewing {viewedImage} (read-only). Use \"Extract…\" to edit it.");
+            }
+            else
+            {
+                SetStatus($"Opened {definition}");
+            }
+
+            return true;
         }
         catch (Exception exception)
         {
             Log.Error($"Open '{definition}'", exception);
             SetStatus($"Could not open {Path.GetFileName(definition)}: {exception.Message}", true);
+            return false;
         }
     }
 
     private void LoadDocument(string root, string definition, CardDocument document)
     {
+        // Leaving a viewed image: its temporary folder goes away.
+        if (_viewFolder is not null && !IsInside(root, _viewFolder))
+            DeleteViewFolder();
+
+        IsReadOnly = false;
+        ViewedImage = string.Empty;
         _context.Loading = true;
         try
         {
@@ -191,7 +237,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         RefreshChecks();
     }
 
-    private bool CanSave() => HasCard && !IsBuilding;
+    private bool CanSave() => HasCard && !IsBusy && !IsReadOnly;
 
     [RelayCommand(CanExecute = nameof(CanSave))]
     private void Save() => TrySave();
@@ -230,14 +276,222 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             $"{DefinitionName} has unsaved changes. Discard them?", "Discard");
     }
 
+    // ------------------------------------------------------------ card images
+
+    [RelayCommand(CanExecute = nameof(CanChangeCard))]
+    private async Task OpenImageAsync()
+    {
+        if (!await ConfirmDiscardAsync())
+            return;
+
+        var files = await _dialogs.PickFilesAsync("Open a card image", false, null, "Card image", ["*.img.xz", "*.img"]);
+        if (files.Count == 0)
+            return;
+
+        var image = files[0];
+        var choice = await _dialogs.ChooseAsync("Open a card image",
+            $"{Path.GetFileName(image)}\n\nExtract it to a folder to edit and rebuild it, or just view it " +
+            "(unpacked to a temporary folder, read-only).",
+            ["Extract to a folder…", "Just view", "Cancel"]);
+
+        if (choice == 0)
+        {
+            var destination = await PickExtractDestinationAsync(image);
+            if (destination is not null && await ExtractImageAsync(image, destination))
+                await OpenExtractedAsync(destination, viewedImage: null);
+        }
+        else if (choice == 1)
+        {
+            var temporary = Path.Combine(ViewRoot, Guid.NewGuid().ToString("N"));
+            if (!await ExtractImageAsync(image, temporary))
+            {
+                TryDeleteFolder(temporary);
+                return;
+            }
+
+            DeleteViewFolder();
+            _viewFolder = temporary;
+            if (!await OpenExtractedAsync(temporary, image))
+                DeleteViewFolder();
+        }
+    }
+
+    private bool CanExtract() => IsReadOnly && !IsBusy;
+
+    /// <summary>Read-only mode: copies the viewed card to a folder and opens it there, editable.</summary>
+    [RelayCommand(CanExecute = nameof(CanExtract))]
+    private async Task ExtractAsync()
+    {
+        var destination = await PickExtractDestinationAsync(ViewedImage);
+        if (destination is null)
+            return;
+
+        try
+        {
+            CopyFolder(CardRoot, destination);
+            var definition = Path.Combine(destination, Path.GetRelativePath(CardRoot, DefinitionPath));
+            Open(definition);
+            SetStatus($"Extracted to {destination}");
+        }
+        catch (Exception exception)
+        {
+            Log.Error("Extract", exception);
+            await _dialogs.ShowErrorAsync("Could not extract the card", exception.Message);
+        }
+    }
+
+    /// <summary>Asks for a parent folder; the card goes into a new sub folder named after the image.</summary>
+    private async Task<string?> PickExtractDestinationAsync(string image)
+    {
+        var parent = await _dialogs.PickFolderAsync("Extract the card into…", Path.GetDirectoryName(image));
+        if (parent is null)
+            return null;
+
+        var name = Path.GetFileName(image);
+        foreach (var suffix in new[] { ".img.xz", ".xz", ".img" })
+        {
+            if (name.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                name = name[..^suffix.Length];
+                break;
+            }
+        }
+
+        var destination = Path.Combine(parent, Sanitize(name));
+        if (Directory.Exists(destination) && Directory.EnumerateFileSystemEntries(destination).Any())
+        {
+            await _dialogs.ShowErrorAsync("The folder isn't empty",
+                $"{destination} already exists and isn't empty. Choose another place, or remove it first.");
+            return null;
+        }
+
+        return destination;
+    }
+
+    private async Task<bool> ExtractImageAsync(string image, string destination)
+    {
+        IsBusy = true;
+        BusyPercent = 0;
+        BusyStatus = "Reading the image…";
+        _busyCts = new CancellationTokenSource();
+        try
+        {
+            await ImageExtractor.ExtractAsync(image, destination, new Progress<ExtractProgress>(p =>
+            {
+                var xz = Xz.IsXz(image);
+                BusyPercent = p.Stage == ExtractStage.Decompressing ? p.Fraction * 60 : (xz ? 60 : 0) + p.Fraction * (xz ? 40 : 100);
+                BusyStatus = p.Stage == ExtractStage.Decompressing ? "Decompressing…" : "Extracting files…";
+            }), _busyCts.Token);
+            return true;
+        }
+        catch (OperationCanceledException)
+        {
+            SetStatus("Cancelled.");
+            return false;
+        }
+        catch (Exception exception)
+        {
+            Log.Error("Extract", exception);
+            SetStatus($"Could not read the image: {exception.Message}", true);
+            await _dialogs.ShowErrorAsync("Could not read the image", exception.Message);
+            return false;
+        }
+        finally
+        {
+            _busyCts.Dispose();
+            _busyCts = null;
+            IsBusy = false;
+        }
+    }
+
+    private async Task<bool> OpenExtractedAsync(string folder, string? viewedImage)
+    {
+        var definition = CardFolder.FindDefinition(folder);
+        if (definition is not null)
+            return Open(definition, viewedImage);
+
+        var installer = File.Exists(Path.Combine(folder, CardFolder.InstallerManifest));
+        await _dialogs.ShowErrorAsync("No game card in this image",
+            installer
+                ? "This is an installer card (retrogc-data.rgc), not a game card."
+                : "There is no .rgc card definition at the root of this image." +
+                  (viewedImage is null ? $"\n\nIts files were extracted to {folder}." : string.Empty));
+        return false;
+    }
+
+    /// <summary>Removes "Just view" folders left by a previous run (crash, kill).</summary>
+    public static void CleanupStaleViews()
+    {
+        try
+        {
+            if (!Directory.Exists(ViewRoot))
+                return;
+
+            foreach (var folder in Directory.EnumerateDirectories(ViewRoot))
+            {
+                if (Directory.GetLastWriteTimeUtc(folder) < DateTime.UtcNow.AddDays(-1))
+                    TryDeleteFolder(folder);
+            }
+        }
+        catch (Exception exception)
+        {
+            Log.Error("Cleanup of temporary folders", exception);
+        }
+    }
+
+    private void DeleteViewFolder()
+    {
+        if (_viewFolder is null)
+            return;
+
+        TryDeleteFolder(_viewFolder);
+        _viewFolder = null;
+    }
+
+    private static void TryDeleteFolder(string folder)
+    {
+        try
+        {
+            if (Directory.Exists(folder))
+                Directory.Delete(folder, recursive: true);
+        }
+        catch (Exception exception)
+        {
+            Log.Error($"Could not delete '{folder}'", exception);
+        }
+    }
+
+    private static void CopyFolder(string source, string destination)
+    {
+        foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories))
+            Directory.CreateDirectory(Path.Combine(destination, Path.GetRelativePath(source, directory)));
+        Directory.CreateDirectory(destination);
+
+        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+        {
+            var target = Path.Combine(destination, Path.GetRelativePath(source, file));
+            File.Copy(file, target, overwrite: false);
+            File.SetLastWriteTimeUtc(target, File.GetLastWriteTimeUtc(file));
+        }
+    }
+
+    private static bool IsInside(string path, string folder)
+    {
+        var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
+        return full == root || full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+    }
+
     // ------------------------------------------------------------ build / flash
 
-    private bool CanBuild() => HasCard && !IsBuilding;
+    private bool CanBuild() => HasCard && !IsBusy && !IsReadOnly;
+
+    private bool CanFlash() => HasCard && !IsBusy;
 
     [RelayCommand(CanExecute = nameof(CanBuild))]
     private async Task BuildAsync() => await BuildImageAsync(askPath: true);
 
-    [RelayCommand(CanExecute = nameof(CanBuild))]
+    [RelayCommand(CanExecute = nameof(CanFlash))]
     private async Task FlashAsync()
     {
         var image = LastImage.Length > 0 && File.Exists(LastImage) && !IsDirty
@@ -248,7 +502,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    private void CancelBuild() => _buildCts?.Cancel();
+    private void CancelBusy() => _busyCts?.Cancel();
 
     /// <summary>Saves, validates and builds the image. Returns its path, or null.</summary>
     private async Task<string?> BuildImageAsync(bool askPath)
@@ -272,18 +526,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         if (!output.EndsWith(".img.xz", StringComparison.OrdinalIgnoreCase))
             output += output.EndsWith(".img", StringComparison.OrdinalIgnoreCase) ? ".xz" : ".img.xz";
 
-        IsBuilding = true;
-        BuildPercent = 0;
-        BuildStatus = "Writing files…";
-        _buildCts = new CancellationTokenSource();
+        IsBusy = true;
+        BusyPercent = 0;
+        BusyStatus = "Writing files…";
+        _busyCts = new CancellationTokenSource();
         try
         {
             await ImageBuilder.BuildAsync(CardRoot, output, new Progress<BuildProgress>(p =>
             {
                 // Writing ≈ 30%, compressing ≈ 70% of the time.
-                BuildPercent = p.Stage == BuildStage.Writing ? p.Fraction * 30 : 30 + p.Fraction * 70;
-                BuildStatus = p.Stage == BuildStage.Writing ? "Writing files…" : "Compressing (xz)…";
-            }), _buildCts.Token);
+                BusyPercent = p.Stage == BuildStage.Writing ? p.Fraction * 30 : 30 + p.Fraction * 70;
+                BusyStatus = p.Stage == BuildStage.Writing ? "Writing files…" : "Compressing (xz)…";
+            }), _busyCts.Token);
 
             LastImage = output;
             SetStatus($"Image ready: {output} ({UsbDrive.FormatSize(new FileInfo(output).Length)})");
@@ -302,9 +556,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         finally
         {
-            _buildCts.Dispose();
-            _buildCts = null;
-            IsBuilding = false;
+            _busyCts.Dispose();
+            _busyCts = null;
+            IsBusy = false;
         }
     }
 
@@ -392,7 +646,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        _buildCts?.Cancel();
+        _busyCts?.Cancel();
+        DeleteViewFolder();
         Cover?.Dispose();
     }
 }

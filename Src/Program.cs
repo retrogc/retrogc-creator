@@ -15,6 +15,8 @@ internal static class Program
         // Headless modes (no window): image build from the command line, elevated USB writer.
         if (args.Length > 0 && args[0] == "--build")
             return RunBuild(args).GetAwaiter().GetResult();
+        if (args.Length > 0 && args[0] == "--extract")
+            return RunExtract(args).GetAwaiter().GetResult();
         if (args.Length > 0 && args[0] == Flasher.HelperArgument)
             return Flasher.RunElevatedHelper(args);
 
@@ -27,6 +29,27 @@ internal static class Program
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
+
+    private static async Task<int> RunExtract(string[] args)
+    {
+        if (args.Length != 3)
+        {
+            Console.Error.WriteLine("Usage: retrogc-creator --extract <image.img.xz> <output-folder>");
+            return 2;
+        }
+
+        try
+        {
+            var label = await ImageExtractor.ExtractAsync(args[1], args[2]);
+            Log.Info($"Extracted '{label}' to {args[2]}");
+            return 0;
+        }
+        catch (Exception exception)
+        {
+            Log.Error("Extract failed", exception);
+            return 1;
+        }
+    }
 
     private static async Task<int> RunBuild(string[] args)
     {

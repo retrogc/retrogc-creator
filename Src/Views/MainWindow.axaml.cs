@@ -99,6 +99,9 @@ public partial class MainWindow : Window, IDialogs
     public Task ShowErrorAsync(string title, string message) =>
         MessageWindow.ShowAsync(this, title, message, "OK", null);
 
+    public Task<int> ChooseAsync(string title, string message, string[] options) =>
+        MessageWindow.ChooseAsync(this, title, message, options);
+
     public async Task ShowFlashAsync(string image)
     {
         var window = new FlashWindow(new FlashViewModel(image));
