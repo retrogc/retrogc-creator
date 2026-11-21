@@ -1,0 +1,74 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:RetroGcCreator.ViewModels"
+        xmlns:services="using:RetroGcCreator.Services"
+        x:Class="RetroGcCreator.Views.FlashWindow"
+        x:DataType="vm:FlashViewModel"
+        Title="Write the card to a USB drive"
+        Icon="/Assets/Icons/launcher.ico"
+        Width="620" Height="600" MinWidth="520" MinHeight="520"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="28,24">
+        <StackPanel Spacing="6">
+            <TextBlock Text="WRITE TO USB" Classes="eyebrow" />
+            <TextBlock Text="Choose the USB drive" Classes="h1" />
+            <TextBlock Text="{Binding ImageText}" Classes="mono" TextTrimming="CharacterEllipsis" />
+        </StackPanel>
+
+        <Grid Grid.Row="1" RowDefinitions="Auto,*" Margin="0,20,0,0">
+            <Grid ColumnDefinitions="*,Auto">
+                <TextBlock Text="USB DRIVES" Classes="label" VerticalAlignment="Center" />
+                <Button Grid.Column="1" Classes="ghost" Content="Refresh" Command="{Binding RefreshCommand}" />
+            </Grid>
+            <Panel Grid.Row="1" Margin="0,8,0,0">
+                <ListBox ItemsSource="{Binding Drives}" SelectedItem="{Binding SelectedDrive}"
+                         IsEnabled="{Binding IsIdle}" Background="{StaticResource SurfaceBrush}" CornerRadius="10">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate DataType="services:UsbDrive">
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14" Margin="4,6">
+                                <PathIcon Data="{StaticResource IconSdCard}" Width="22" Height="22"
+                                          Foreground="{StaticResource AccentBrush}" />
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding Detail}" Classes="mono" FontSize="11" />
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+                <TextBlock Text="No USB drive found. Plug one in, then press Refresh." Classes="hint"
+                           HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding NoDrives}" />
+            </Panel>
+        </Grid>
+
+        <StackPanel Grid.Row="2" Spacing="12" Margin="0,16,0,0">
+            <Border Classes="banner warning" IsVisible="{Binding HasDrive}">
+                <CheckBox IsChecked="{Binding Confirmed}" IsEnabled="{Binding IsIdle}">
+                    <TextBlock TextWrapping="Wrap"
+                               Text="{Binding SelectedDrive.Title, StringFormat='I understand that everything on {0} will be erased.', FallbackValue=''}" />
+                </CheckBox>
+            </Border>
+            <ProgressBar Minimum="0" Maximum="100" Value="{Binding Percent}" IsVisible="{Binding IsWriting}" />
+            <Border Classes="banner ok" IsVisible="{Binding IsDone}">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <PathIcon Data="{StaticResource IconCheck}" />
+                    <TextBlock Grid.Column="1" Text="{Binding Status}" TextWrapping="Wrap" />
+                </Grid>
+            </Border>
+            <Border Classes="banner error" IsVisible="{Binding StatusIsError}">
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <PathIcon Data="{StaticResource IconWarning}" />
+                    <SelectableTextBlock Grid.Column="1" Text="{Binding Status}" TextWrapping="Wrap" />
+                </Grid>
+            </Border>
+            <TextBlock Text="{Binding Status}" Classes="hint" IsVisible="{Binding IsWriting}" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button Classes="ghost" Content="Close" Command="{Binding CloseCommand}" IsVisible="{Binding IsIdle}" />
+            <Button Content="Cancel" Command="{Binding CancelCommand}" IsVisible="{Binding IsWriting}" />
+            <Button Classes="primary" Content="Write" Command="{Binding WriteCommand}" />
+        </StackPanel>
+    </Grid>
+</Window>

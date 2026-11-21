@@ -1,0 +1,86 @@
+name: Build Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Validate version
+        run: |
+          if [[ ! "${{ inputs.version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid version: ${{ inputs.version }}"
+            echo "Version must be in the form X.Y.Z (for example 1.0.0)"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore RetroGcCreator.csproj
+
+      - name: Publish Linux
+        run: >
+          dotnet publish RetroGcCreator.csproj
+          --configuration Release
+          --runtime linux-x64
+          --self-contained true
+          --output publish/linux
+          -p:PublishReadyToRun=true
+          -p:PublishTrimmed=true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:IncludeAllContentForSelfExtract=true
+          -p:Version=${{ inputs.version }}
+
+      - name: Publish Windows
+        run: >
+          dotnet publish RetroGcCreator.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          --output publish/windows
+          -p:PublishReadyToRun=true
+          -p:PublishTrimmed=true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:IncludeAllContentForSelfExtract=true
+          -p:Version=${{ inputs.version }}
+
+      - name: Create Linux ZIP
+        run: |
+          mkdir -p release
+          cd publish/linux
+          zip ../../release/retrogc-creator-linux.zip retrogc-creator
+
+      - name: Create Windows ZIP
+        run: |
+          cd publish/windows
+          zip ../../release/retrogc-creator-windows.zip retrogc-creator.exe
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.version }}
+          name: RetroGC Creator v${{ inputs.version }}
+          generate_release_notes: true
+          files: |
+            release/retrogc-creator-linux.zip
+            release/retrogc-creator-windows.zip

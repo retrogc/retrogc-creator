@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ApplicationManifest>Src\app.manifest</ApplicationManifest>
+        <AssemblyName>retrogc-creator</AssemblyName>
+        <RootNamespace>RetroGcCreator</RootNamespace>
+        <!-- Overridden at publish time (release.yml: -p:Version=X.Y.Z) -->
+        <Version>0.0.0</Version>
+        <ApplicationIcon>Src\Assets\Icons\launcher.ico</ApplicationIcon>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="12.1.4" />
+        <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="12.1.4" />
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+        <PackageReference Include="Joveler.Compression.XZ" Version="5.0.2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Remove="Src\Assets\**" />
+        <AvaloniaResource Include="Src\Assets\**" Link="Assets\%(RecursiveDir)%(Filename)%(Extension)" />
+    </ItemGroup>
+</Project>

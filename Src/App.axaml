@@ -1,0 +1,13 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="RetroGcCreator.App"
+             RequestedThemeVariant="Dark">
+    <Application.Styles>
+        <FluentTheme>
+            <FluentTheme.Palettes>
+                <ColorPaletteResources x:Key="Dark" Accent="#2FA383" RegionColor="#0A0C12" AltHigh="#0A0C12" />
+            </FluentTheme.Palettes>
+        </FluentTheme>
+        <StyleInclude Source="/Src/Styles/Theme.axaml" />
+    </Application.Styles>
+</Application>

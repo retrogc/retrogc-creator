@@ -1,0 +1,368 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:RetroGcCreator.ViewModels"
+        mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="820"
+        x:Class="RetroGcCreator.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
+        Title="{Binding WindowTitle}"
+        Icon="/Assets/Icons/launcher.ico"
+        Width="1280" Height="840"
+        MinWidth="980" MinHeight="640"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Styles>
+        <Style Selector="TextBlock.field">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="LetterSpacing" Value="1" />
+            <Setter Property="Foreground" Value="{StaticResource TextDimBrush}" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+        <Style Selector="TextBlock.section">
+            <Setter Property="FontSize" Value="18" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{StaticResource TextStrongBrush}" />
+        </Style>
+        <Style Selector="Border.card">
+            <Setter Property="Padding" Value="24,22" />
+        </Style>
+        <Style Selector="PathIcon.state">
+            <Setter Property="Width" Value="14" />
+            <Setter Property="Height" Value="14" />
+            <Setter Property="Foreground" Value="{StaticResource TextFaintBrush}" />
+        </Style>
+        <Style Selector="PathIcon.state.ok">
+            <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+        </Style>
+        <Style Selector="PathIcon.state.bad">
+            <Setter Property="Foreground" Value="{StaticResource ErrorBrush}" />
+        </Style>
+        <Style Selector="TextBlock.status">
+            <Setter Property="Foreground" Value="{StaticResource TextDimBrush}" />
+        </Style>
+        <Style Selector="TextBlock.status.error">
+            <Setter Property="Foreground" Value="{StaticResource ErrorBrush}" />
+        </Style>
+        <Style Selector="Button.small">
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="FontSize" Value="12" />
+        </Style>
+        <Style Selector="Button.tool">
+            <Setter Property="Padding" Value="14,8" />
+        </Style>
+    </Window.Styles>
+
+    <Window.DataTemplates>
+        <!-- One path: status icon, editable relative path, file picker -->
+        <DataTemplate DataType="vm:PathEntryViewModel">
+            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,8">
+                <PathIcon Classes="state ok" Data="{StaticResource IconCheck}" IsVisible="{Binding IsPresent}"
+                          ToolTip.Tip="{Binding StatusText}" />
+                <PathIcon Classes="state bad" Data="{StaticResource IconWarning}"
+                          IsVisible="{Binding !IsPresent}" ToolTip.Tip="{Binding StatusText}" />
+                <TextBox Grid.Column="1" Text="{Binding Path}" FontFamily="{StaticResource MonoFont}" FontSize="12"
+                         PlaceholderText="relative/path/in/the/card" ToolTip.Tip="{Binding StatusText}" />
+                <Button Grid.Column="2" Classes="small" Content="Choose file…" Command="{Binding BrowseCommand}"
+                        ToolTip.Tip="Pick a file: it is copied into the card" />
+                <Button Grid.Column="3" Classes="small ghost" Content="▲" Command="{Binding MoveUpCommand}"
+                        IsVisible="{Binding Owner, Converter={x:Static ObjectConverters.IsNotNull}}" ToolTip.Tip="Move up" />
+                <Button Grid.Column="4" Classes="small ghost" Content="▼" Command="{Binding MoveDownCommand}"
+                        IsVisible="{Binding Owner, Converter={x:Static ObjectConverters.IsNotNull}}" ToolTip.Tip="Move down" />
+                <Button Grid.Column="5" Classes="small ghost" Content="✕" Command="{Binding RemoveCommand}"
+                        IsVisible="{Binding Owner, Converter={x:Static ObjectConverters.IsNotNull}}"
+                        ToolTip.Tip="Remove from the list (the file stays in the folder)" />
+            </Grid>
+        </DataTemplate>
+
+        <!-- A list of paths (roms, runtimes) -->
+        <DataTemplate DataType="vm:PathListViewModel">
+            <StackPanel Spacing="6">
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding Title}" Classes="field" Margin="0" />
+                        <TextBlock Text="{Binding Hint}" Classes="hint" FontSize="12" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Classes="small ghost" Content="+ Type a path" Command="{Binding AddPathCommand}" />
+                    <Button Grid.Column="2" Classes="small" Content="+ Add files…" Command="{Binding AddFilesCommand}" />
+                </Grid>
+                <TextBlock Text="Nothing yet." Classes="hint" FontSize="12" IsVisible="{Binding IsEmpty}" Margin="0,2,0,6" />
+                <ItemsControl ItemsSource="{Binding Items}" Margin="0,4,0,0" />
+            </StackPanel>
+        </DataTemplate>
+
+        <!-- Checklist line -->
+        <DataTemplate DataType="vm:FileCheck">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" Margin="0,0,0,8">
+                <PathIcon Classes="state ok" Data="{StaticResource IconCheck}" IsVisible="{Binding IsPresent}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                <PathIcon Classes="state bad" Data="{StaticResource IconWarning}" IsVisible="{Binding IsProblem}" VerticalAlignment="Top" Margin="0,2,0,0" />
+                <StackPanel Grid.Column="1" Spacing="1">
+                    <TextBlock Text="{Binding Label}" FontSize="12" Foreground="{StaticResource TextDimBrush}" />
+                    <TextBlock Text="{Binding Path}" Classes="mono" FontSize="11" TextTrimming="LeadingCharacterEllipsis"
+                               ToolTip.Tip="{Binding Path}" />
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
+    </Window.DataTemplates>
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- ===================================================== Toolbar -->
+        <Border BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,0,0,1" Padding="20,12"
+                Background="#0D121C">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="16">
+                <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                    <Image Source="/Assets/Icons/retrogc.png" Width="34" Height="34" />
+                    <StackPanel Spacing="0" VerticalAlignment="Center">
+                        <TextBlock Text="RETRO GAME CARD" Classes="eyebrow" />
+                        <TextBlock Text="Card Creator" Classes="h2" FontSize="17" />
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="24,0,0,0" VerticalAlignment="Center">
+                    <Button Classes="tool ghost" Command="{Binding NewCardCommand}" ToolTip.Tip="Create a card in a new folder">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconSdCard}" Width="14" Height="14" />
+                            <TextBlock Text="New card" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="tool ghost" Command="{Binding OpenFolderCommand}" ToolTip.Tip="Open a card folder (with its .rgc)">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconFolderOpen}" Width="14" Height="14" />
+                            <TextBlock Text="Open folder" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="tool ghost" Content="Open .rgc" Command="{Binding OpenDefinitionCommand}" />
+                    <Button Classes="tool ghost" Command="{Binding SaveCommand}" HotKey="Ctrl+S" ToolTip.Tip="Save the .rgc (Ctrl+S)">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconCheck}" Width="14" Height="14" />
+                            <TextBlock Text="Save" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Button Classes="tool" Command="{Binding FlashCommand}" ToolTip.Tip="Build the image if needed, then write it to a USB stick">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconPlay}" Width="12" Height="12" />
+                            <TextBlock Text="Write to USB" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="tool primary" Command="{Binding BuildCommand}" ToolTip.Tip="Save, then build the .img.xz card image">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconArchive}" Width="14" Height="14" Foreground="#0A0C12" />
+                            <TextBlock Text="Build image" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ===================================================== Empty state -->
+        <StackPanel Grid.Row="1" IsVisible="{Binding !HasCard}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                    Spacing="16" MaxWidth="520">
+            <Image Source="/Assets/Icons/retrogc.png" Width="110" Height="110" HorizontalAlignment="Center" Opacity="0.9" />
+            <TextBlock Text="Make a game card" Classes="h1" HorizontalAlignment="Center" />
+            <TextBlock Classes="body" TextAlignment="Center" TextWrapping="Wrap"
+                       Text="Open a card folder to edit it (every field is filled from its .rgc), or start a new card in an empty folder. Add the game files, then build the image and write it to a USB stick." />
+            <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center" Margin="0,8,0,0">
+                <Button Classes="primary" Content="New card" Command="{Binding NewCardCommand}" />
+                <Button Content="Open card folder" Command="{Binding OpenFolderCommand}" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- ===================================================== Card -->
+        <Grid Grid.Row="1" ColumnDefinitions="300,*" IsVisible="{Binding HasCard}">
+
+            <!-- Sidebar: cover, folder, checklist -->
+            <Border BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,0,1,0" Background="#0B1019">
+                <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="20,22" Spacing="18">
+                        <Border CornerRadius="12" ClipToBounds="True" Height="250" Background="{StaticResource SurfaceSunkenBrush}"
+                                BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1">
+                            <Panel>
+                                <Image Source="{Binding Cover}" Stretch="Uniform" IsVisible="{Binding HasCover}" />
+                                <StackPanel IsVisible="{Binding !HasCover}" VerticalAlignment="Center" Spacing="10">
+                                    <PathIcon Data="{StaticResource IconGamepad}" Width="40" Height="40"
+                                              Foreground="{StaticResource TextFaintBrush}" />
+                                    <TextBlock Text="No cover image" Classes="hint" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Panel>
+                        </Border>
+                        <Button Content="Choose cover image…" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                Command="{Binding Editor.Image.BrowseCommand}" />
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Text="CARD FOLDER" Classes="label" />
+                            <TextBlock Text="{Binding CardFolderName}" Classes="h2" FontSize="16" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="{Binding CardRoot}" Classes="mono" FontSize="11" TextWrapping="Wrap" Opacity="0.8" />
+                            <TextBlock Text="{Binding DefinitionName}" Classes="mono" FontSize="11" Opacity="0.8" />
+                            <Button Classes="small ghost" Content="Show in file manager" Command="{Binding OpenCardFolderCommand}"
+                                    HorizontalAlignment="Left" Margin="-10,4,0,0" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="FILES" Classes="label" />
+                            <Border Classes="banner ok" IsVisible="{Binding !HasProblems}">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                    <PathIcon Data="{StaticResource IconCheck}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding ChecksSummary}" />
+                                </Grid>
+                            </Border>
+                            <Border Classes="banner warning" IsVisible="{Binding HasProblems}">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                                    <PathIcon Data="{StaticResource IconWarning}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding ChecksSummary}" TextWrapping="Wrap" />
+                                </Grid>
+                            </Border>
+                            <ItemsControl ItemsSource="{Binding Checks}" />
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+
+            <!-- Editor -->
+            <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="32,26,32,32" Spacing="20" MaxWidth="980">
+
+                    <!-- General -->
+                    <Border Classes="card">
+                        <StackPanel Spacing="16">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="General" Classes="section" />
+                                <TextBlock Classes="hint" FontSize="12" Text="Shown on the launcher screen. Only the name is required." />
+                            </StackPanel>
+                            <Grid ColumnDefinitions="2*,*" ColumnSpacing="16">
+                                <StackPanel>
+                                    <TextBlock Text="NAME *" Classes="field" />
+                                    <TextBox Text="{Binding Editor.Name}" PlaceholderText="Super Mario Bros" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="PLATFORM" Classes="field" />
+                                    <TextBox Text="{Binding Editor.Platform}" PlaceholderText="NES, CPS-1, NEOGEO…" />
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel>
+                                <TextBlock Text="DESCRIPTION" Classes="field" />
+                                <TextBox Text="{Binding Editor.Description}" AcceptsReturn="True" TextWrapping="Wrap"
+                                         MinHeight="96" MaxHeight="220" PlaceholderText="A few lines about the game" />
+                            </StackPanel>
+                            <Grid ColumnDefinitions="*,2*,2*,*" ColumnSpacing="16">
+                                <StackPanel>
+                                    <TextBlock Text="YEAR" Classes="field" />
+                                    <TextBox Text="{Binding Editor.Year}" PlaceholderText="1989" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="DEVELOPER" Classes="field" />
+                                    <TextBox Text="{Binding Editor.Developer}" PlaceholderText="Capcom" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="GENRE" Classes="field" />
+                                    <TextBox Text="{Binding Editor.Genre}" PlaceholderText="Beat 'em up" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="3">
+                                    <TextBlock Text="PLAYERS" Classes="field" />
+                                    <TextBox Text="{Binding Editor.Players}" PlaceholderText="1-2" />
+                                </StackPanel>
+                            </Grid>
+                            <StackPanel>
+                                <TextBlock Text="COVER IMAGE (PNG)" Classes="field" />
+                                <ContentControl Content="{Binding Editor.Image}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- RetroArch -->
+                    <Border Classes="card">
+                        <StackPanel Spacing="16">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="RetroArch" Classes="section" />
+                                <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                           Text="How Windows, Linux and Recalbox start the game. Paths are relative to the card folder." />
+                            </StackPanel>
+                            <Grid ColumnDefinitions="*,*,*" ColumnSpacing="16">
+                                <StackPanel>
+                                    <TextBlock Text="CORE *" Classes="field" />
+                                    <TextBox Text="{Binding Editor.Core}" PlaceholderText="nestopia, fbneo, swanstation…"
+                                             ToolTip.Tip="Libretro core name without _libretro suffix" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="RECALBOX SYSTEM" Classes="field" />
+                                    <TextBox Text="{Binding Editor.System}" PlaceholderText="nes, fbneo, psx…"
+                                             ToolTip.Tip="Recalbox system name (its ROM folder name). Optional: lets Recalbox start the game with its own launcher." />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="RETROARCH VERSION *" Classes="field" />
+                                    <TextBox Text="{Binding Editor.Version}" PlaceholderText="1.22.2" />
+                                </StackPanel>
+                            </Grid>
+                            <ContentControl Content="{Binding Editor.RetroArchRoms}" />
+                            <ContentControl Content="{Binding Editor.RetroArchRuntimes}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- MiSTer -->
+                    <Border Classes="card">
+                        <StackPanel Spacing="16">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="MiSTer FPGA" Classes="section" />
+                                    <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                               Text="Optional. Paths are relative to the card folder, which becomes the SD/USB root (_Console, _Arcade…)." />
+                                </StackPanel>
+                                <ToggleSwitch Grid.Column="1" IsChecked="{Binding Editor.HasMister}" OnContent="" OffContent=""
+                                              VerticalAlignment="Center" ToolTip.Tip="The card supports MiSTer FPGA" />
+                            </Grid>
+                            <StackPanel Spacing="16" IsVisible="{Binding Editor.HasMister}">
+                                <StackPanel>
+                                    <TextBlock Text="CORE (.rbf) *" Classes="field" />
+                                    <ContentControl Content="{Binding Editor.MisterCore}" />
+                                </StackPanel>
+                                <ContentControl Content="{Binding Editor.MisterRoms}" />
+                                <Button Classes="small ghost" Content="Use the RetroArch ROMs" HorizontalAlignment="Left"
+                                        Command="{Binding Editor.CopyRetroArchRomsCommand}" Margin="0,-10,0,0" />
+                                <ContentControl Content="{Binding Editor.MisterRuntimes}" />
+                                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="16">
+                                    <StackPanel>
+                                        <TextBlock Text="DELAY" Classes="field" />
+                                        <TextBox Text="{Binding Editor.MisterDelay}" PlaceholderText="1" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="INDEX" Classes="field" />
+                                        <TextBox Text="{Binding Editor.MisterIndex}" PlaceholderText="1" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="TYPE" Classes="field" />
+                                        <TextBox Text="{Binding Editor.MisterType}" PlaceholderText="f (file) or s (stream)" />
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Classes="hint" FontSize="12" TextWrapping="Wrap"
+                                           Text="Delay, index and type go into the generated .mgl and only matter for non-.mra ROMs." />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- ===================================================== Status bar -->
+        <Border Grid.Row="2" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,1,0,0" Padding="20,10"
+                Background="#0D121C">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                <TextBlock Classes="status" Classes.error="{Binding StatusIsError}" Text="{Binding StatusMessage}"
+                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="12"
+                           IsVisible="{Binding !IsBuilding}" ToolTip.Tip="{Binding StatusMessage}" />
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12" IsVisible="{Binding IsBuilding}">
+                    <TextBlock Text="{Binding BuildStatus}" VerticalAlignment="Center" FontSize="12" />
+                    <ProgressBar Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding BuildPercent}" VerticalAlignment="Center" />
+                </Grid>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button Classes="small" Content="Cancel" Command="{Binding CancelBuildCommand}" IsVisible="{Binding IsBuilding}" />
+                    <Button Classes="small ghost" Content="Show image" Command="{Binding ShowImageCommand}"
+                            IsVisible="{Binding LastImage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
