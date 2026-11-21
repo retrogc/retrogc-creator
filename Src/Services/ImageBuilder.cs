@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -105,14 +106,22 @@ public static class ImageBuilder
             var rid = (OperatingSystem.IsWindows() ? "win" : OperatingSystem.IsMacOS() ? "osx" : "linux") + "-" +
                       RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
 
-            // Published apps have it next to the executable, builds under runtimes/<rid>/native.
-            string[] candidates =
-            [
+            // Builds have it under runtimes/<rid>/native, plain publishes next to the executable,
+            // single-file releases in the folder the runtime extracts native libraries to
+            // (one of its native search directories).
+            var candidates = new List<string>
+            {
                 Path.Combine(AppContext.BaseDirectory, library),
                 Path.Combine(AppContext.BaseDirectory, "runtimes", rid, "native", library)
-            ];
+            };
+            if (AppContext.GetData("NATIVE_DLL_SEARCH_DIRECTORIES") is string searchDirectories)
+            {
+                foreach (var directory in searchDirectories.Split(Path.PathSeparator,
+                             StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    candidates.Add(Path.Combine(directory, library));
+            }
 
-            var path = Array.Find(candidates, File.Exists)
+            var path = candidates.Find(File.Exists)
                        ?? throw new FileNotFoundException($"Native xz library not found ({library}).");
             XZInit.GlobalInit(path);
             _xzReady = true;
