@@ -83,33 +83,8 @@ public sealed partial class PathListViewModel : ObservableObject
         if (!Items.Remove(item))
             return;
 
-        if (!wasPresent || _context.Editor is not { } editor || _context.Root.Length == 0)
-            return;
-
-        // Still used elsewhere (e.g. the same ROM for RetroArch and MiSTer): the file stays.
-        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-        var full = CardFolder.Resolve(_context.Root, path.TrimStart('/'));
-        if (full is null || editor.AllPaths().Any(p =>
-                CardFolder.Resolve(_context.Root, p.Entry.Path.Trim().TrimStart('/')) is { } other &&
-                string.Equals(other, full, comparison)))
-            return;
-
-        var trash = OperatingSystem.IsWindows() ? "the Recycle Bin" : "the trash";
-        if (!await _context.Dialogs.ConfirmAsync("Delete the file too?",
-                $"{path} is not used by the card any more. Also move it to {trash}?",
-                $"Move to {trash}", "Keep the file"))
-            return;
-
-        try
-        {
-            Trash.MoveToTrash(full);
-            _context.FilesChanged();
-        }
-        catch (Exception exception)
-        {
-            Log.Error($"Could not remove '{full}'", exception);
-            await _context.Dialogs.ShowErrorAsync("Could not remove the file", exception.Message);
-        }
+        if (wasPresent)
+            await _context.OfferDeleteIfUnusedAsync(path);
     }
 
     public void Move(PathEntryViewModel item, int offset)

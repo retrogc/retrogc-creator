@@ -40,7 +40,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         {
             IsDirty = true;
             RefreshChecks();
-        }, RefreshChecks);
+        }, () =>
+        {
+            // A file added for one line can also be another line's (same ROM for RetroArch and MiSTer).
+            Editor?.RefreshFiles();
+            RefreshChecks();
+        });
+        _context.UnusedFilesCheck = () => IsReadOnly ? Task.CompletedTask : OfferCleanupAsync();
         Editor = new CardEditorViewModel(_context);
         Editor.Image.PropertyChanged += (_, e) =>
         {
@@ -268,14 +274,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    /// <summary>Files changed on disk (cover replaced...): reload the cover and re-check every path.</summary>
+    /// <summary>
+    /// Files changed on disk (cover replaced...): reload the cover, re-check every path, and look again
+    /// for files the card doesn't use (e.g. a ROM that was replaced by another one).
+    /// </summary>
     [RelayCommand(CanExecute = nameof(HasCard))]
-    private void ReloadFiles()
+    private async Task ReloadFilesAsync()
     {
         Editor.RefreshFiles();
         UpdateCover();
         RefreshChecks();
         SetStatus("Files reloaded");
+
+        if (!IsReadOnly)
+            await OfferCleanupAsync();
     }
 
     private void LoadDocument(string root, string definition, CardDocument document)
@@ -459,6 +471,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             _document.Save(definition);
             if (!string.Equals(oldDefinition, definition, StringComparison.OrdinalIgnoreCase) && File.Exists(oldDefinition))
                 File.Delete(oldDefinition);
+            RenameCover(destination, definition);
         }
         catch (Exception exception)
         {
@@ -473,6 +486,30 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
         if (Open(definition, viewedImage: null))
             SetStatus($"Duplicated to {destination}");
+    }
+
+    /// <summary>
+    /// The duplicated card's cover is named after its folder too, like its definition
+    /// (<c>smb.png</c> → <c>super-mario-bros-3.png</c>, same folder and extension).
+    /// </summary>
+    private static void RenameCover(string root, string definition)
+    {
+        var card = CardDocument.Load(definition);
+        var image = card.GetString("image").Trim().TrimStart('/');
+        if (image.Length == 0 || CardFolder.Resolve(root, image) is not { } current || !File.Exists(current))
+            return;
+
+        var folder = Path.GetDirectoryName(image)?.Replace('\\', '/');
+        var renamed = (string.IsNullOrEmpty(folder) ? string.Empty : folder + "/") +
+                      Path.GetFileNameWithoutExtension(definition) + Path.GetExtension(image);
+        if (CardFolder.Resolve(root, renamed) is not { } target ||
+            string.Equals(current, target, StringComparison.OrdinalIgnoreCase) || File.Exists(target))
+            return;
+
+        File.Move(current, target);
+        card.SetString("image", renamed);
+        card.Save(definition);
+        Log.Info($"Cover renamed: {image} -> {renamed}");
     }
 
     private async Task<string?> PickExtractDestinationAsync(string image)

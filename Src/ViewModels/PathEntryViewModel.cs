@@ -54,11 +54,24 @@ public sealed partial class PathEntryViewModel : ObservableObject
     };
 
     /// <summary>Re-checks the file (after an import or a folder change).</summary>
-    public void Refresh() => OnPropertyChanged(nameof(Path));
+    public void Refresh()
+    {
+        // The status properties are computed from the disk: announce them all, not only the path.
+        OnPropertyChanged(nameof(Path));
+        OnPropertyChanged(nameof(State));
+        OnPropertyChanged(nameof(IsPresent));
+        OnPropertyChanged(nameof(IsMissing));
+        OnPropertyChanged(nameof(IsInvalid));
+        OnPropertyChanged(nameof(StatusText));
+    }
 
     /// <summary>
-    /// Picks a file and puts it into the card: at the current path when it is set (fills a missing file),
-    /// else in the default folder for this kind.
+    /// Picks a file and puts it into the card:
+    /// - missing file, or a BIOS / system file (cores look for its exact name): copied to the current path;
+    /// - present ROM / cover / core: the picked file replaces it with its own name, next to the old one
+    ///   (then the old file can be moved to the Recycle Bin if nothing else uses it);
+    /// - no path yet: copied to the default folder for this kind.
+    /// A file already inside the card is used where it is.
     /// </summary>
     [RelayCommand]
     private async Task BrowseAsync()
@@ -67,16 +80,24 @@ public sealed partial class PathEntryViewModel : ObservableObject
         if (files.Count == 0)
             return;
 
+        var picked = files[0];
+        var oldPath = Path.Trim();
+        var oldState = State;
+        var outside = CardFolder.RelativeTo(_context.Root, picked) is null;
         try
         {
-            if (!string.IsNullOrWhiteSpace(Path) && State != PathState.Invalid && CardFolder.RelativeTo(_context.Root, files[0]) is null)
+            if (outside && oldState == PathState.Missing ||
+                outside && oldState == PathState.Present && KeepsName(Kind))
             {
-                CardFolder.ImportAs(_context.Root, files[0], Path);
+                CardFolder.ImportAs(_context.Root, picked, oldPath);
                 Refresh();
             }
             else
             {
-                Path = CardFolder.Import(_context.Root, files[0], _context.DefaultFolder(Kind, files[0]));
+                var folder = oldState == PathState.Present
+                    ? System.IO.Path.GetDirectoryName(oldPath.TrimStart('/'))?.Replace('\\', '/') ?? string.Empty
+                    : _context.DefaultFolder(Kind, picked);
+                Path = CardFolder.Import(_context.Root, picked, folder);
             }
 
             _context.FilesChanged();
@@ -85,8 +106,18 @@ public sealed partial class PathEntryViewModel : ObservableObject
         {
             Log.Error("Import", exception);
             await _context.Dialogs.ShowErrorAsync("Could not add the file", exception.Message);
+            return;
         }
+
+        if (oldState == PathState.Present && !string.Equals(oldPath, Path.Trim(), StringComparison.Ordinal))
+            await _context.OfferDeleteIfUnusedAsync(oldPath);
+        else if (oldState == PathState.Missing)
+            // A missing file was just filled: other files may now be leftovers (e.g. an older ROM).
+            await _context.CheckUnusedFilesAsync();
     }
+
+    /// <summary>BIOS / system files are looked for by name by the cores: replacing one keeps its name.</summary>
+    private static bool KeepsName(PathKind kind) => kind is PathKind.RetroArchRuntime or PathKind.MisterRuntime;
 
     [RelayCommand]
     private async Task RemoveAsync()

@@ -103,10 +103,17 @@ public static class CardFolder
         root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
         var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
         var used = new HashSet<string>(comparer) { Path.GetFullPath(definition) };
+        // Folders the card points into (missing files included): never listed as a whole, so a missing ROM
+        // doesn't turn its folder into "games/" — its leftover files are listed one by one instead.
+        var usedFolders = new HashSet<string>(comparer);
         foreach (var relative in referenced.Concat(AutorunFiles(root)))
         {
-            if (Resolve(root, relative.Trim().TrimStart('/')) is { } full)
-                used.Add(full);
+            if (Resolve(root, relative.Trim().TrimStart('/')) is not { } full)
+                continue;
+
+            used.Add(full);
+            for (var folder = Path.GetDirectoryName(full); folder is not null && folder.Length > root.Length; folder = Path.GetDirectoryName(folder))
+                usedFolders.Add(folder);
         }
 
         var result = new List<Unreferenced>();
@@ -122,7 +129,7 @@ public static class CardFolder
                 if (entry is DirectoryInfo sub && sub.LinkTarget is null)
                 {
                     var inside = new List<Unreferenced>();
-                    if (Walk(sub, inside))
+                    if (Walk(sub, inside) && !usedFolders.Contains(sub.FullName))
                         items.Add(new Unreferenced(Display(sub.FullName) + "/", sub.FullName, true));
                     else
                     {
@@ -152,8 +159,14 @@ public static class CardFolder
     /// </summary>
     private static IEnumerable<string> AutorunFiles(string root)
     {
-        var autorun = Directory.EnumerateFiles(root, "*", SearchOption.TopDirectoryOnly)
-            .FirstOrDefault(f => string.Equals(Path.GetFileName(f), "autorun.inf", StringComparison.OrdinalIgnoreCase));
+        var rootFiles = Directory.EnumerateFiles(root, "*", SearchOption.TopDirectoryOnly).ToList();
+
+        // The usual icon is always kept, even when autorun.inf is missing or broken.
+        if (rootFiles.FirstOrDefault(f => string.Equals(Path.GetFileName(f), "autorun.ico", StringComparison.OrdinalIgnoreCase))
+            is { } icon)
+            yield return Path.GetFileName(icon);
+
+        var autorun = rootFiles.FirstOrDefault(f => string.Equals(Path.GetFileName(f), "autorun.inf", StringComparison.OrdinalIgnoreCase));
         if (autorun is null)
             yield break;
 
