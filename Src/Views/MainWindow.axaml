@@ -146,6 +146,13 @@
                             <TextBlock Text="Save" />
                         </StackPanel>
                     </Button>
+                    <Button Classes="tool ghost" Command="{Binding DuplicateCommand}"
+                            ToolTip.Tip="Copy this card into a new folder (the new card's root) and open the copy">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <PathIcon Data="{StaticResource IconFolder}" Width="14" Height="14" />
+                            <TextBlock Text="Duplicate…" />
+                        </StackPanel>
+                    </Button>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">

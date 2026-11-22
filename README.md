@@ -18,6 +18,8 @@ A desktop app to create and edit game cards without writing JSON or using the co
 
 - 📂 **Open a card folder** (or a `.rgc` file): every field is filled from its definition.
 - 🆕 **Start a new card** in an empty folder.
+- 📑 **Duplicate a card** (folder, `.rgc` or image) into a new empty folder, which becomes the new card's
+  root, to make a new card from an existing one.
 - 💽 **Open a card image** (`.img.xz` or `.img`): just view it (read-only), or extract it to a folder
   to edit and rebuild it. Write to USB works straight from a viewed image.
 - ✏️ **Edit every field**: name, description, platform, year, developer, genre, players, cover,

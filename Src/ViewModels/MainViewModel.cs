@@ -56,7 +56,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasCard), nameof(WindowTitle), nameof(CardFolderName))]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand), nameof(BuildCommand), nameof(FlashCommand), nameof(OpenCardFolderCommand),
-        nameof(ReloadFilesCommand))]
+        nameof(ReloadFilesCommand), nameof(DuplicateCommand))]
     public partial string CardRoot { get; set; } = string.Empty;
 
     /// <summary>A card image opened with "Just view": nothing can be saved, "Extract…" makes an editable copy.</summary>
@@ -104,7 +104,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(BuildCommand), nameof(FlashCommand), nameof(SaveCommand),
         nameof(NewCardCommand), nameof(OpenFolderCommand), nameof(OpenDefinitionCommand),
-        nameof(OpenImageCommand), nameof(ExtractCommand))]
+        nameof(OpenImageCommand), nameof(ExtractCommand), nameof(DuplicateCommand))]
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty] public partial double BusyPercent { get; set; }
@@ -410,6 +410,71 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     }
 
     /// <summary>Asks for a parent folder; the card goes into a new sub folder named after the image.</summary>
+    private bool CanDuplicate() => HasCard && !IsBusy;
+
+    /// <summary>
+    /// Copies the open card (folder, .rgc or viewed image) into a chosen empty folder, which becomes the
+    /// new card's root, then opens the copy. Unsaved edits go to the copy, the original stays as saved.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanDuplicate))]
+    private async Task DuplicateAsync()
+    {
+        if (_document is null)
+            return;
+
+        var source = CardRoot;
+        var start = IsReadOnly && ViewedImage.Length > 0
+            ? Path.GetDirectoryName(ViewedImage)
+            : Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(source));
+        var destination = await _dialogs.PickFolderAsync("Duplicate the card into… (an empty folder: the new card's root)", start);
+        if (destination is null)
+            return;
+
+        destination = Path.TrimEndingDirectorySeparator(Path.GetFullPath(destination));
+        if (IsInside(destination, source))
+        {
+            await _dialogs.ShowErrorAsync("Choose another folder",
+                "The copy can't go into the card folder itself. Choose (or create) a folder outside of it.");
+            return;
+        }
+
+        if (Directory.Exists(destination) && Directory.EnumerateFileSystemEntries(destination).Any())
+        {
+            await _dialogs.ShowErrorAsync("The folder isn't empty",
+                $"{destination} isn't empty. Choose (or create) an empty folder: it becomes the new card's root.");
+            return;
+        }
+
+        // The current state of the editor, unsaved edits included, goes to the copy.
+        Editor.Apply(_document);
+        var oldDefinition = Path.Combine(destination, Path.GetRelativePath(source, DefinitionPath));
+        var definition = Path.Combine(destination, Sanitize(Path.GetFileName(destination)) + ".rgc");
+
+        IsBusy = true;
+        BusyPercent = 0;
+        BusyStatus = "Copying the card…";
+        try
+        {
+            await Task.Run(() => CopyFolder(source, destination, new Progress<double>(f => BusyPercent = f * 100)));
+            _document.Save(definition);
+            if (!string.Equals(oldDefinition, definition, StringComparison.OrdinalIgnoreCase) && File.Exists(oldDefinition))
+                File.Delete(oldDefinition);
+        }
+        catch (Exception exception)
+        {
+            Log.Error("Duplicate", exception);
+            await _dialogs.ShowErrorAsync("Could not duplicate the card", exception.Message);
+            return;
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+
+        if (Open(definition, viewedImage: null))
+            SetStatus($"Duplicated to {destination}");
+    }
+
     private async Task<string?> PickExtractDestinationAsync(string image)
     {
         var parent = await _dialogs.PickFolderAsync("Extract the card into…", Path.GetDirectoryName(image));
@@ -530,17 +595,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
     }
 
-    private static void CopyFolder(string source, string destination)
+    private static void CopyFolder(string source, string destination, IProgress<double>? progress = null)
     {
         foreach (var directory in Directory.EnumerateDirectories(source, "*", SearchOption.AllDirectories))
             Directory.CreateDirectory(Path.Combine(destination, Path.GetRelativePath(source, directory)));
         Directory.CreateDirectory(destination);
 
-        foreach (var file in Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories))
+        var files = Directory.EnumerateFiles(source, "*", SearchOption.AllDirectories).Select(f => new FileInfo(f)).ToList();
+        var total = Math.Max(1, files.Sum(f => f.Length));
+        long done = 0;
+        foreach (var file in files)
         {
-            var target = Path.Combine(destination, Path.GetRelativePath(source, file));
-            File.Copy(file, target, overwrite: false);
-            File.SetLastWriteTimeUtc(target, File.GetLastWriteTimeUtc(file));
+            var target = Path.Combine(destination, Path.GetRelativePath(source, file.FullName));
+            File.Copy(file.FullName, target, overwrite: false);
+            File.SetLastWriteTimeUtc(target, file.LastWriteTimeUtc);
+            done += file.Length;
+            progress?.Report((double)done / total);
         }
     }
 
