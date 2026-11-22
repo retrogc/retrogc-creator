@@ -96,6 +96,21 @@ public partial class MainWindow : Window, IDialogs
     public Task<bool> ConfirmAsync(string title, string message, string yes = "Yes", string no = "Cancel") =>
         MessageWindow.ShowAsync(this, title, message, yes, no);
 
+    public async Task<bool> ConfirmListAsync(string title, string message, System.Collections.Generic.IReadOnlyList<string> items,
+        string yes, string no)
+    {
+        // A card given on the command line is opened before the window shows: a dialog needs it shown.
+        if (!IsVisible)
+        {
+            var opened = new TaskCompletionSource();
+            Opened += (_, _) => opened.TrySetResult();
+            if (!IsVisible)
+                await opened.Task;
+        }
+
+        return await MessageWindow.ShowListAsync(this, title, message, items, yes, no);
+    }
+
     public Task ShowErrorAsync(string title, string message) =>
         MessageWindow.ShowAsync(this, title, message, "OK", null);
 

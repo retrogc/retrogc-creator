@@ -197,8 +197,14 @@
                                 </StackPanel>
                             </Panel>
                         </Border>
-                        <Button Content="Choose cover image…" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                Command="{Binding Editor.Image.BrowseCommand}" IsEnabled="{Binding IsEditable}" />
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <Button Content="Choose cover image…" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                    Command="{Binding Editor.Image.BrowseCommand}" IsEnabled="{Binding IsEditable}" />
+                            <Button Grid.Column="1" Command="{Binding ReloadFilesCommand}"
+                                    ToolTip.Tip="Reload the cover and re-check the card's files (after changing them on disk)">
+                                <PathIcon Data="{StaticResource IconRefresh}" Width="14" Height="14" />
+                            </Button>
+                        </Grid>
 
                         <Border Classes="banner warning" IsVisible="{Binding IsReadOnly}">
                             <StackPanel Spacing="10">

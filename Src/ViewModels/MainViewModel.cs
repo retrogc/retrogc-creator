@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -54,7 +55,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasCard), nameof(WindowTitle), nameof(CardFolderName))]
-    [NotifyCanExecuteChangedFor(nameof(SaveCommand), nameof(BuildCommand), nameof(FlashCommand), nameof(OpenCardFolderCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand), nameof(BuildCommand), nameof(FlashCommand), nameof(OpenCardFolderCommand),
+        nameof(ReloadFilesCommand))]
     public partial string CardRoot { get; set; } = string.Empty;
 
     /// <summary>A card image opened with "Just view": nothing can be saved, "Extract…" makes an editable copy.</summary>
@@ -197,6 +199,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             else
             {
                 SetStatus($"Opened {definition}");
+                // Files the card doesn't use would end up in the image: offer to remove them.
+                _ = OfferCleanupAsync();
             }
 
             return true;
@@ -207,6 +211,71 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             SetStatus($"Could not open {Path.GetFileName(definition)}: {exception.Message}", true);
             return false;
         }
+    }
+
+    /// <summary>
+    /// Lists the files / folders of the card folder that the definition doesn't use and offers to move
+    /// them to the Recycle Bin.
+    /// </summary>
+    private async Task OfferCleanupAsync()
+    {
+        try
+        {
+            var root = CardRoot;
+            var definition = DefinitionPath;
+            var referenced = Editor.AllPaths().Select(p => p.Entry.Path).ToList();
+            var extra = await Task.Run(() => CardFolder.FindUnreferenced(root, definition, referenced));
+            if (extra.Count == 0 || CardRoot != root)
+                return;
+
+            var name = Path.GetFileName(definition);
+            var trash = OperatingSystem.IsWindows() ? "the Recycle Bin" : "the trash";
+            var plural = extra.Count > 1 ? "These files are" : "This file is";
+            if (!await _dialogs.ConfirmListAsync("Files not used by the card",
+                    $"{plural} in the card folder but not in {name}: they would end up in the card image. " +
+                    $"Move {(extra.Count > 1 ? "them" : "it")} to {trash}?",
+                    extra.Select(e => e.Display).ToList(), $"Move to {trash}", "Keep"))
+            {
+                SetStatus($"Kept {extra.Count} file{(extra.Count > 1 ? "s" : "")} not used by the card");
+                return;
+            }
+
+            var failed = new List<string>();
+            foreach (var item in extra)
+            {
+                try
+                {
+                    Trash.MoveToTrash(item.FullPath);
+                }
+                catch (Exception exception)
+                {
+                    Log.Error($"Could not remove '{item.FullPath}'", exception);
+                    failed.Add($"{item.Display}: {exception.Message}");
+                }
+            }
+
+            Editor.RefreshFiles();
+            RefreshChecks();
+            if (failed.Count > 0)
+                await _dialogs.ShowErrorAsync("Some files could not be removed", string.Join(Environment.NewLine, failed));
+            else
+                SetStatus($"Moved {extra.Count} item{(extra.Count > 1 ? "s" : "")} not used by the card to {trash}");
+        }
+        catch (Exception exception)
+        {
+            Log.Error("Card folder cleanup", exception);
+            SetStatus($"Could not check the card folder: {exception.Message}", true);
+        }
+    }
+
+    /// <summary>Files changed on disk (cover replaced...): reload the cover and re-check every path.</summary>
+    [RelayCommand(CanExecute = nameof(HasCard))]
+    private void ReloadFiles()
+    {
+        Editor.RefreshFiles();
+        UpdateCover();
+        RefreshChecks();
+        SetStatus("Files reloaded");
     }
 
     private void LoadDocument(string root, string definition, CardDocument document)

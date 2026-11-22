@@ -89,7 +89,11 @@ public sealed partial class PathEntryViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Remove() => Owner?.Remove(this);
+    private async Task RemoveAsync()
+    {
+        if (Owner is not null)
+            await Owner.RemoveAsync(this);
+    }
 
     [RelayCommand]
     private void MoveUp() => Owner?.Move(this, -1);

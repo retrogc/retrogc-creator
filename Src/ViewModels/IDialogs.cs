@@ -16,6 +16,9 @@ public interface IDialogs
     /// <summary>Yes / No question.</summary>
     Task<bool> ConfirmAsync(string title, string message, string yes = "Yes", string no = "Cancel");
 
+    /// <summary>Yes / No question with a list of items (files...) shown under the message.</summary>
+    Task<bool> ConfirmListAsync(string title, string message, IReadOnlyList<string> items, string yes, string no);
+
     Task ShowErrorAsync(string title, string message);
 
     /// <summary>Several choices; returns the index of the chosen one, or -1 when the window is closed.</summary>

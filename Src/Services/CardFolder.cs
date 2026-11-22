@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -86,6 +87,101 @@ public static class CardFolder
         File.Copy(source, destination, overwrite: true);
         Log.Info($"Imported '{source}' -> '{destination}'");
         return relative;
+    }
+
+    /// <summary>A file or folder of the card folder that the definition doesn't use.</summary>
+    /// <param name="Display">Card relative path, with a trailing '/' for a folder.</param>
+    public sealed record Unreferenced(string Display, string FullPath, bool IsDirectory);
+
+    /// <summary>
+    /// Everything under <paramref name="root"/> that is neither <paramref name="definition"/> nor one of the
+    /// <paramref name="referenced"/> card paths. A folder holding nothing referenced (or empty) is reported
+    /// once, as a folder, instead of file by file.
+    /// </summary>
+    public static IReadOnlyList<Unreferenced> FindUnreferenced(string root, string definition, IEnumerable<string> referenced)
+    {
+        root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
+        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+        var used = new HashSet<string>(comparer) { Path.GetFullPath(definition) };
+        foreach (var relative in referenced.Concat(AutorunFiles(root)))
+        {
+            if (Resolve(root, relative.Trim().TrimStart('/')) is { } full)
+                used.Add(full);
+        }
+
+        var result = new List<Unreferenced>();
+        Walk(new DirectoryInfo(Path.GetFullPath(root)), result);
+        return result;
+
+        // Returns true when nothing under the folder is used (the folder itself can go).
+        bool Walk(DirectoryInfo directory, List<Unreferenced> items)
+        {
+            var wholly = true;
+            foreach (var entry in directory.EnumerateFileSystemInfos().OrderBy(e => e.Name, StringComparer.OrdinalIgnoreCase))
+            {
+                if (entry is DirectoryInfo sub && sub.LinkTarget is null)
+                {
+                    var inside = new List<Unreferenced>();
+                    if (Walk(sub, inside))
+                        items.Add(new Unreferenced(Display(sub.FullName) + "/", sub.FullName, true));
+                    else
+                    {
+                        wholly = false;
+                        items.AddRange(inside);
+                    }
+                }
+                else if (used.Contains(entry.FullName))
+                {
+                    wholly = false;
+                }
+                else
+                {
+                    items.Add(new Unreferenced(Display(entry.FullName), entry.FullName, entry is DirectoryInfo));
+                }
+            }
+
+            return wholly;
+        }
+
+        string Display(string full) => Path.GetRelativePath(root, full).Replace('\\', '/');
+    }
+
+    /// <summary>
+    /// <c>autorun.inf</c> at the root (drive icon and label on Windows) and the icon it names: part of
+    /// the card layout, though not in the definition.
+    /// </summary>
+    private static IEnumerable<string> AutorunFiles(string root)
+    {
+        var autorun = Directory.EnumerateFiles(root, "*", SearchOption.TopDirectoryOnly)
+            .FirstOrDefault(f => string.Equals(Path.GetFileName(f), "autorun.inf", StringComparison.OrdinalIgnoreCase));
+        if (autorun is null)
+            yield break;
+
+        yield return Path.GetFileName(autorun);
+
+        string[] lines;
+        try
+        {
+            lines = File.ReadAllLines(autorun);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            yield break;
+        }
+
+        foreach (var line in lines)
+        {
+            // icon=autorun.ico  /  icon=file.ico,0
+            var trimmed = line.Trim();
+            if (!trimmed.StartsWith("icon", StringComparison.OrdinalIgnoreCase) || trimmed.IndexOf('=') is not (> 0 and var equals))
+                continue;
+            if (!string.Equals(trimmed[..equals].Trim(), "icon", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var value = trimmed[(equals + 1)..].Split(',')[0].Trim().Trim('"').Replace('\\', '/');
+            if (value.Length > 0)
+                yield return value;
+        }
     }
 
     /// <summary>Puts <paramref name="source"/> exactly at <paramref name="relative"/> inside the card.</summary>
