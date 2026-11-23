@@ -347,12 +347,6 @@
                                 <TextBlock Text="Open folder" />
                             </StackPanel>
                         </Button>
-                        <Button Classes="tool ghost" Command="{Binding OpenDefinitionCommand}" ToolTip.Tip="Open a card definition (.rgc)">
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource IconFile}" Foreground="{StaticResource RetroArchBrush}" />
-                                <TextBlock Text="Open .rgc" />
-                            </StackPanel>
-                        </Button>
                         <Button Classes="tool ghost" Command="{Binding OpenImageCommand}" ToolTip.Tip="Open a card image (.img.xz): view it or extract it">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource IconDisc}" Foreground="{StaticResource MisterBrush}" />

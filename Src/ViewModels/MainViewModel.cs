@@ -109,7 +109,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(BuildCommand), nameof(FlashCommand), nameof(SaveCommand),
-        nameof(NewCardCommand), nameof(OpenFolderCommand), nameof(OpenDefinitionCommand),
+        nameof(NewCardCommand), nameof(OpenFolderCommand),
         nameof(OpenImageCommand), nameof(ExtractCommand), nameof(DuplicateCommand))]
     public partial bool IsBusy { get; set; }
 
@@ -169,18 +169,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
 
         Open(definition);
-    }
-
-    [RelayCommand(CanExecute = nameof(CanChangeCard))]
-    private async Task OpenDefinitionAsync()
-    {
-        if (!await ConfirmDiscardAsync())
-            return;
-
-        var files = await _dialogs.PickFilesAsync("Open a .rgc card definition", false, null,
-            "Retro Game Card", ["*.rgc"]);
-        if (files.Count > 0)
-            Open(files[0]);
     }
 
     /// <summary>Opens a card definition; its folder is the card root.</summary>
