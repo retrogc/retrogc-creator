@@ -91,8 +91,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     public string WindowTitle => !HasCard
         ? "Retro Game Card Creator"
         : IsReadOnly
-            ? $"{Path.GetFileName(ViewedImage)} (read-only) — Retro Game Card Creator"
-            : $"{(IsDirty ? "● " : string.Empty)}{CardFolderName} — Retro Game Card Creator";
+            ? $"{Path.GetFileName(ViewedImage)} (read-only) | Retro Game Card Creator"
+            : $"{(IsDirty ? "● " : string.Empty)}{CardFolderName} | Retro Game Card Creator";
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasCover))]

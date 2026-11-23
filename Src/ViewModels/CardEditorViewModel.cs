@@ -30,7 +30,7 @@ public sealed partial class CardEditorViewModel : ObservableObject
         RetroArchRoms = new PathListViewModel(context, PathKind.RetroArchRom, "ROMs",
             "The first file is the one RetroArch starts; the others must exist (e.g. extra discs).");
         RetroArchRuntimes = new PathListViewModel(context, PathKind.RetroArchRuntime, "System / BIOS files",
-            "Copied to RetroArch's system folder (Recalbox: /recalbox/share/bios) before the game starts.");
+            "Copied to RetroArch's system folder before the game starts.");
         MisterCore = new PathEntryViewModel(context, PathKind.MisterCore);
         MisterRoms = new PathListViewModel(context, PathKind.MisterRom, "ROMs",
             "The first file is loaded; arcade games point to a .mra file.");

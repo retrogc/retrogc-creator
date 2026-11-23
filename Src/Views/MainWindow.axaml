@@ -367,7 +367,7 @@
                             </StackPanel>
                         </Button>
                         <Button Classes="tool ghost" Command="{Binding DuplicateCommand}"
-                                ToolTip.Tip="Copy this card into a new folder (the new card's root) and open the copy">
+                                ToolTip.Tip="Copy this card into a new folder and open the copy">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource IconCopy}" Foreground="{StaticResource RetroArchBrush}" />
                                 <TextBlock Text="Duplicate…" />
@@ -591,7 +591,7 @@
                                 <StackPanel Grid.Column="1">
                                     <TextBlock Text="RECALBOX SYSTEM" Classes="field" />
                                     <TextBox Text="{Binding Editor.System}" PlaceholderText="nes, fbneo, psx…"
-                                             ToolTip.Tip="Recalbox system name (its ROM folder name). Optional: lets Recalbox start the game with its own launcher." />
+                                             ToolTip.Tip="Recalbox system name (its ROM folder name). Recommended: lets Recalbox start the game with its own launcher." />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="VERSION *" Classes="field" />
@@ -612,8 +612,8 @@
                                     <PathIcon Data="{StaticResource IconChip}" />
                                 </Border>
                                 <TextBlock Grid.Column="1" Text="MiSTer FPGA" Classes="section" />
-                                <TextBlock Grid.Column="2" Classes="sectionhint" Text="Optional"
-                                           ToolTip.Tip="Optional. Paths are relative to the card folder, which becomes the SD/USB root (_Console, _Arcade…)." />
+                                <TextBlock Grid.Column="2" Classes="sectionhint" Text="Recommended"
+                                           ToolTip.Tip="Recommended. Paths are relative to the card folder, which becomes the SD/USB root (_Console, _Arcade…)." />
                                 <Button Grid.Column="3" Classes="small ghost" Command="{Binding Editor.CopyRetroArchRomsCommand}"
                                         IsVisible="{Binding Editor.HasMister}"
                                         ToolTip.Tip="Copy the RetroArch ROM list into the MiSTer ROM list">
