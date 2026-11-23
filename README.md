@@ -10,13 +10,17 @@
 [![Avalonia](https://img.shields.io/badge/UI-Avalonia%2012-8B44AC?style=flat-square)](https://avaloniaui.net/)
 [![License](https://img.shields.io/badge/License-GPL--3.0-blue?style=flat-square)](LICENSE)
 
+<br />
+
+<img src="docs/screenshots/creator.png" alt="The creator editing a game card" width="820" />
+
 </div>
 
 ---
 
 A desktop app to create and edit game cards without writing JSON or using the command line:
 
-- 📂 **Open a card folder** (or a `.rgc` file): every field is filled from its definition.
+- 📂 **Open a card folder**: every field is filled from its `.rgc` definition.
 - 🆕 **Start a new card** in an empty folder.
 - 📑 **Duplicate a card** (folder, `.rgc` or image) into a new empty folder, which becomes the new card's
   root, to make a new card from an existing one.

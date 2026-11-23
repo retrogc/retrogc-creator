@@ -59,10 +59,14 @@ public sealed class MessageWindow : Window
             buttons.Children.Add(button);
         }
 
-        var heading = new TextBlock { Text = title, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) };
+        var heading = new TextBlock { Text = title, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 12) };
         heading.Classes.Add("h2");
+        var stripe = new Avalonia.Controls.Primitives.UniformGrid { Margin = new Thickness(0, 0, 0, 14) };
+        stripe.Classes.Add("stripe");
+        foreach (var color in new[] { "MagentaBrush", "OrangeBrush", "YellowBrush", "GreenBrush", "CyanBrush", "VioletBrush" })
+            stripe.Children.Add(new Avalonia.Controls.Shapes.Rectangle { Fill = Resource(color) });
         var body = new SelectableTextBlock { Text = message, TextWrapping = TextWrapping.Wrap };
-        var content = new StackPanel { Margin = new Thickness(26, 22), Children = { heading, body } };
+        var content = new StackPanel { Margin = new Thickness(26, 22), Children = { heading, stripe, body } };
 
         // A long list (files...) scrolls instead of growing the window.
         if (items is { Count: > 0 })
@@ -70,7 +74,7 @@ public sealed class MessageWindow : Window
             var list = new SelectableTextBlock
             {
                 Text = string.Join(Environment.NewLine, items),
-                FontSize = 12,
+                FontSize = 16,
                 TextWrapping = TextWrapping.NoWrap
             };
             if (Application.Current?.TryGetResource("MonoFont", Application.Current.ActualThemeVariant, out var font) == true && font is FontFamily family)
@@ -80,9 +84,8 @@ public sealed class MessageWindow : Window
             {
                 Margin = new Thickness(0, 14, 0, 0),
                 Padding = new Thickness(12, 10),
-                CornerRadius = new CornerRadius(8),
-                BorderThickness = new Thickness(1),
-                BorderBrush = Resource("BorderSubtleBrush"),
+                BorderThickness = new Thickness(2),
+                BorderBrush = Resource("BorderBrush"),
                 Background = Resource("SurfaceSunkenBrush"),
                 Child = new ScrollViewer { MaxHeight = 260, HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto, Content = list }
             });
@@ -90,6 +93,7 @@ public sealed class MessageWindow : Window
 
         content.Children.Add(buttons);
         Content = content;
+        PixelPerfect.Track(this, 1);
     }
 
     private static IBrush? Resource(string key) =>

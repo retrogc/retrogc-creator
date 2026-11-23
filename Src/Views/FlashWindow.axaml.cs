@@ -17,6 +17,7 @@ public partial class FlashWindow : Window
         _viewModel = viewModel;
         DataContext = viewModel;
         InitializeComponent();
+        PixelPerfect.Track(this, 1);
 
         if (viewModel is null)
             return;

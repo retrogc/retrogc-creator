@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:RetroGcCreator.Views"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:RetroGcCreator.ViewModels"
@@ -13,54 +14,25 @@
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
-        <!-- Section tints: General (teal), RetroArch (blue), MiSTer (violet) -->
-        <SolidColorBrush x:Key="GeneralBrush" Color="#5CE1B7" />
-        <SolidColorBrush x:Key="RetroArchBrush" Color="#7FB2FF" />
-        <SolidColorBrush x:Key="MisterBrush" Color="#B79BFF" />
-        <SolidColorBrush x:Key="AmberBrush" Color="#F2BF5E" />
-
-        <LinearGradientBrush x:Key="GeneralCardBrush" StartPoint="0%,0%" EndPoint="100%,100%">
-            <GradientStop Offset="0" Color="#13292A" />
-            <GradientStop Offset="0.5" Color="#111723" />
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="RetroArchCardBrush" StartPoint="0%,0%" EndPoint="100%,100%">
-            <GradientStop Offset="0" Color="#142139" />
-            <GradientStop Offset="0.6" Color="#111723" />
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="MisterCardBrush" StartPoint="0%,0%" EndPoint="100%,100%">
-            <GradientStop Offset="0" Color="#1C1835" />
-            <GradientStop Offset="0.6" Color="#111723" />
-        </LinearGradientBrush>
-
-        <LinearGradientBrush x:Key="ToolbarBrush" StartPoint="0%,0%" EndPoint="100%,0%">
-            <GradientStop Offset="0" Color="#0F1A22" />
-            <GradientStop Offset="0.5" Color="#0D121C" />
-            <GradientStop Offset="1" Color="#121327" />
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="ToolbarLineBrush" StartPoint="0%,0%" EndPoint="100%,0%">
-            <GradientStop Offset="0" Color="#5CE1B7" />
-            <GradientStop Offset="0.5" Color="#7FB2FF" />
-            <GradientStop Offset="1" Color="#B79BFF" />
-        </LinearGradientBrush>
-        <LinearGradientBrush x:Key="SidebarBrush" StartPoint="0%,0%" EndPoint="0%,100%">
-            <GradientStop Offset="0" Color="#0E1520" />
-            <GradientStop Offset="1" Color="#0A0E16" />
-        </LinearGradientBrush>
+        <!-- Section colours: General (cyan), RetroArch (magenta), MiSTer (violet); folders in yellow -->
+        <StaticResource x:Key="GeneralBrush" ResourceKey="CyanBrush" />
+        <StaticResource x:Key="RetroArchBrush" ResourceKey="MagentaBrush" />
+        <StaticResource x:Key="MisterBrush" ResourceKey="VioletBrush" />
+        <StaticResource x:Key="AmberBrush" ResourceKey="YellowBrush" />
     </Window.Resources>
 
     <!-- Compact density: scoped to the main window so the dialogs keep their own look. -->
     <Window.Styles>
         <Style Selector="TextBlock.field">
-            <Setter Property="FontSize" Value="10.5" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="LetterSpacing" Value="0.8" />
+            <Setter Property="FontFamily" Value="{StaticResource PixelFont}" />
+            <Setter Property="(v:PixelPerfect.FontSize)" Value="8" />
             <Setter Property="Foreground" Value="{StaticResource TextDimBrush}" />
-            <Setter Property="Margin" Value="0,0,0,3" />
+            <Setter Property="Margin" Value="0,0,0,5" />
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
         </Style>
         <Style Selector="TextBlock.section">
-            <Setter Property="FontSize" Value="14" />
-            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="FontFamily" Value="{StaticResource PixelFont}" />
+            <Setter Property="(v:PixelPerfect.FontSize)" Value="12" />
             <Setter Property="Foreground" Value="{StaticResource TextStrongBrush}" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
@@ -71,57 +43,43 @@
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
         </Style>
 
-        <!-- Section cards, tinted per section -->
+        <!-- Section cards: flat, border in the section colour, hard pixel shadow -->
         <Style Selector="Border.card">
             <Setter Property="Padding" Value="14,10,14,12" />
-            <Setter Property="CornerRadius" Value="10" />
-            <Setter Property="BoxShadow" Value="0 4 18 0 #55000000" />
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+            <Setter Property="BoxShadow" Value="4 4 0 0 #000000" />
         </Style>
         <Style Selector="Border.card.general">
-            <Setter Property="Background" Value="{StaticResource GeneralCardBrush}" />
-            <Setter Property="BorderBrush" Value="#24443F" />
+            <Setter Property="BorderBrush" Value="{StaticResource CyanBrush}" />
         </Style>
         <Style Selector="Border.card.retroarch">
-            <Setter Property="Background" Value="{StaticResource RetroArchCardBrush}" />
-            <Setter Property="BorderBrush" Value="#26385A" />
+            <Setter Property="BorderBrush" Value="{StaticResource MagentaBrush}" />
         </Style>
         <Style Selector="Border.card.mister">
-            <Setter Property="Background" Value="{StaticResource MisterCardBrush}" />
-            <Setter Property="BorderBrush" Value="#362E5C" />
+            <Setter Property="BorderBrush" Value="{StaticResource VioletBrush}" />
         </Style>
 
-        <!-- Rounded icon badge in front of a section title -->
+        <!-- Square icon badge in front of a section title: filled with the section colour -->
         <Style Selector="Border.badge">
             <Setter Property="Width" Value="26" />
             <Setter Property="Height" Value="26" />
-            <Setter Property="CornerRadius" Value="7" />
-            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="BorderBrush" Value="#000000" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style Selector="Border.badge > PathIcon">
             <Setter Property="Width" Value="14" />
             <Setter Property="Height" Value="14" />
+            <Setter Property="Foreground" Value="{StaticResource TextOnAccentBrush}" />
         </Style>
         <Style Selector="Border.badge.general">
-            <Setter Property="Background" Value="#123C35" />
-            <Setter Property="BorderBrush" Value="#286A5C" />
-        </Style>
-        <Style Selector="Border.badge.general > PathIcon">
-            <Setter Property="Foreground" Value="{StaticResource GeneralBrush}" />
+            <Setter Property="Background" Value="{StaticResource CyanBrush}" />
         </Style>
         <Style Selector="Border.badge.retroarch">
-            <Setter Property="Background" Value="#16284A" />
-            <Setter Property="BorderBrush" Value="#2D4C80" />
-        </Style>
-        <Style Selector="Border.badge.retroarch > PathIcon">
-            <Setter Property="Foreground" Value="{StaticResource RetroArchBrush}" />
+            <Setter Property="Background" Value="{StaticResource MagentaBrush}" />
         </Style>
         <Style Selector="Border.badge.mister">
-            <Setter Property="Background" Value="#251C46" />
-            <Setter Property="BorderBrush" Value="#4A3A86" />
-        </Style>
-        <Style Selector="Border.badge.mister > PathIcon">
-            <Setter Property="Foreground" Value="{StaticResource MisterBrush}" />
+            <Setter Property="Background" Value="{StaticResource VioletBrush}" />
         </Style>
 
         <!-- Inputs -->
@@ -129,40 +87,44 @@
             <Setter Property="MinHeight" Value="28" />
             <Setter Property="Padding" Value="8,4" />
             <Setter Property="FontSize" Value="13" />
-            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="FontFamily" Value="Inter, Arial, sans-serif" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="Background" Value="#0A0F18" />
-            <Setter Property="BorderBrush" Value="#2A3650" />
+            <Setter Property="Background" Value="{StaticResource SurfaceSunkenBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderStrongBrush}" />
         </Style>
         <Style Selector="TextBox:pointerover /template/ Border#PART_BorderElement">
-            <Setter Property="BorderBrush" Value="#43547A" />
-            <Setter Property="Background" Value="#0C121D" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderStrongBrush}" />
+            <Setter Property="Background" Value="{StaticResource SurfaceSunkenBrush}" />
         </Style>
         <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
-            <Setter Property="BorderBrush" Value="{StaticResource AccentBrush}" />
-            <Setter Property="Background" Value="#0B1219" />
+            <Setter Property="BorderBrush" Value="{StaticResource CyanBrush}" />
+            <Setter Property="Background" Value="{StaticResource SurfaceSunkenBrush}" />
         </Style>
         <Style Selector="TextBox.path">
             <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
-            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="FontSize" Value="16" />
             <Setter Property="MinHeight" Value="26" />
             <Setter Property="Padding" Value="6,3" />
         </Style>
 
         <!-- Buttons -->
         <Style Selector="Button">
-            <Setter Property="CornerRadius" Value="5" />
-            <Setter Property="Padding" Value="12,5" />
-            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="(v:PixelPerfect.FontSize)" Value="8" />
         </Style>
         <Style Selector="Button.small">
-            <Setter Property="Padding" Value="8,3" />
-            <Setter Property="FontSize" Value="11.5" />
+            <Setter Property="Padding" Value="8,5" />
             <Setter Property="MinHeight" Value="24" />
         </Style>
         <Style Selector="Button.small PathIcon">
             <Setter Property="Width" Value="10" />
             <Setter Property="Height" Value="10" />
+        </Style>
+        <Style Selector="Button.small /template/ ContentPresenter#PART_ContentPresenter, Button.icon /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="BoxShadow" Value="2 2 0 0 #000000" />
+        </Style>
+        <Style Selector="Button.small:pressed, Button.icon:pressed">
+            <Setter Property="RenderTransform" Value="translate(2px,2px)" />
         </Style>
         <!-- Square icon button used in path rows -->
         <Style Selector="Button.icon">
@@ -181,8 +143,9 @@
             <Setter Property="Height" Value="16" />
         </Style>
         <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-            <Setter Property="Background" Value="#2E1719" />
-            <Setter Property="Foreground" Value="{StaticResource ErrorBrush}" />
+            <Setter Property="Background" Value="{StaticResource RedSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource RedBrush}" />
+            <Setter Property="Foreground" Value="{StaticResource RedBrush}" />
         </Style>
         <Style Selector="Button.ghost:disabled /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="Transparent" />
@@ -226,17 +189,16 @@
         <Style Selector="TextBlock.status.error">
             <Setter Property="Foreground" Value="{StaticResource ErrorBrush}" />
         </Style>
-        <Style Selector="Ellipse.led.error">
+        <Style Selector="Rectangle.led.error">
             <Setter Property="Fill" Value="{StaticResource ErrorBrush}" />
         </Style>
-        <Style Selector="Ellipse.led.busy">
+        <Style Selector="Rectangle.led.busy">
             <Setter Property="Fill" Value="{StaticResource InfoBrush}" />
         </Style>
 
         <!-- Banners -->
         <Style Selector="Border.banner">
             <Setter Property="Padding" Value="10,7" />
-            <Setter Property="CornerRadius" Value="6" />
         </Style>
         <Style Selector="Border.banner TextBlock">
             <Setter Property="FontSize" Value="12" />
@@ -247,7 +209,7 @@
             <Setter Property="Margin" Value="0,1,0,0" />
         </Style>
         <Style Selector="Border.divider">
-            <Setter Property="Height" Value="1" />
+            <Setter Property="Height" Value="2" />
             <Setter Property="Background" Value="{StaticResource BorderSubtleBrush}" />
         </Style>
     </Window.Styles>
@@ -318,7 +280,7 @@
                 <PathIcon Classes="state bad" Data="{StaticResource IconWarning}" IsVisible="{Binding IsProblem}" />
                 <TextBlock Grid.Column="1" Text="{Binding Label}" FontSize="11" Foreground="{StaticResource TextMutedBrush}"
                            VerticalAlignment="Center" />
-                <TextBlock Grid.Column="2" Text="{Binding Path}" Classes="mono" FontSize="10.5" Opacity="0.7"
+                <TextBlock Grid.Column="2" Text="{Binding Path}" Classes="mono" FontSize="15" Opacity="0.8"
                            TextTrimming="LeadingCharacterEllipsis" VerticalAlignment="Center" />
             </Grid>
         </DataTemplate>
@@ -328,10 +290,13 @@
 
         <!-- ===================================================== Toolbar -->
         <Panel>
-            <Border Padding="12,6,12,7" Background="{StaticResource ToolbarBrush}">
+            <Border Padding="12,8,12,10" Background="{StaticResource SurfaceSunkenBrush}">
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
-                    <TextBlock Text="Card Creator" FontSize="15" FontWeight="Bold" VerticalAlignment="Center" Margin="4,0,0,0"
-                               Foreground="{StaticResource TextStrongBrush}" />
+                    <TextBlock VerticalAlignment="Center" Margin="4,0,8,0" FontFamily="{StaticResource PixelFont}"
+                               v:PixelPerfect.FontSize="12">
+                        <Run Text="CARD " Foreground="{StaticResource MagentaBrush}" />
+                        <Run Text="CREATOR" Foreground="{StaticResource CyanBrush}" />
+                    </TextBlock>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0" Margin="4,0,0,0" VerticalAlignment="Center"
                                 ClipToBounds="True">
@@ -353,7 +318,7 @@
                                 <TextBlock Text="Open image" />
                             </StackPanel>
                         </Button>
-                        <Border Width="1" Margin="6,4" Background="{StaticResource BorderBrush}" />
+                        <Border Width="2" Margin="8,4" Background="{StaticResource BorderBrush}" />
                         <Button Classes="tool ghost" Command="{Binding SaveCommand}" HotKey="Ctrl+S" ToolTip.Tip="Save the .rgc (Ctrl+S)">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <PathIcon Data="{StaticResource IconSave}" Foreground="{StaticResource GeneralBrush}" />
@@ -379,32 +344,40 @@
                         <Button Classes="tool primary" Command="{Binding BuildCommand}" Padding="14,5"
                                 ToolTip.Tip="Save, then build the .img.xz card image">
                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                <PathIcon Data="{StaticResource IconArchive}" Foreground="#E8FFF7" />
+                                <PathIcon Data="{StaticResource IconArchive}" Foreground="{StaticResource TextOnAccentBrush}" />
                                 <TextBlock Text="Build image" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
                 </Grid>
             </Border>
-            <!-- Accent line under the toolbar -->
-            <Border Height="2" VerticalAlignment="Bottom" Background="{StaticResource ToolbarLineBrush}" Opacity="0.55" />
+            <!-- Rainbow stripe under the toolbar -->
+            <UniformGrid Classes="stripe" VerticalAlignment="Bottom">
+                <Rectangle Fill="{StaticResource MagentaBrush}" />
+                <Rectangle Fill="{StaticResource OrangeBrush}" />
+                <Rectangle Fill="{StaticResource YellowBrush}" />
+                <Rectangle Fill="{StaticResource GreenBrush}" />
+                <Rectangle Fill="{StaticResource CyanBrush}" />
+                <Rectangle Fill="{StaticResource VioletBrush}" />
+            </UniformGrid>
         </Panel>
 
         <!-- ===================================================== Empty state -->
         <StackPanel Grid.Row="1" IsVisible="{Binding !HasCard}" HorizontalAlignment="Center" VerticalAlignment="Center"
                     Spacing="14" MaxWidth="520">
-            <Border Width="120" Height="120" CornerRadius="60" HorizontalAlignment="Center"
-                    BoxShadow="0 0 60 6 #335CE1B7">
+            <Border Width="124" Height="124" HorizontalAlignment="Center" Padding="8"
+                    Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource CyanBrush}" BorderThickness="2"
+                    BoxShadow="6 6 0 0 #000000" Margin="0,0,0,8">
                 <Image Source="/Assets/Icons/retrogc.png" Width="104" Height="104" />
             </Border>
             <TextBlock Text="Make a game card" Classes="h1" HorizontalAlignment="Center"
-                       Foreground="{StaticResource ToolbarLineBrush}" />
+                       Foreground="{StaticResource YellowBrush}" />
             <TextBlock Classes="body" TextAlignment="Center" TextWrapping="Wrap"
                        Text="Open a card folder to edit it (every field is filled from its .rgc), open a card image (.img.xz) to view or extract it, or start a new card in an empty folder. Add the game files, then build the image and write it to a USB stick." />
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" Margin="0,6,0,0">
                 <Button Classes="primary" Command="{Binding NewCardCommand}">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <PathIcon Data="{StaticResource IconSdCard}" Width="14" Height="14" Foreground="#E8FFF7" />
+                        <PathIcon Data="{StaticResource IconSdCard}" Width="14" Height="14" Foreground="{StaticResource TextOnAccentBrush}" />
                         <TextBlock Text="New card" />
                     </StackPanel>
                 </Button>
@@ -427,12 +400,12 @@
         <Grid Grid.Row="1" ColumnDefinitions="250,*" IsVisible="{Binding HasCard}">
 
             <!-- Sidebar: cover, folder, checklist -->
-            <Border BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,0,1,0" Background="{StaticResource SidebarBrush}">
+            <Border BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,0,2,0" Background="{StaticResource SurfaceSunkenBrush}">
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Margin="12,12" Spacing="10">
-                        <Border CornerRadius="10" Height="180" Background="{StaticResource SurfaceSunkenBrush}"
-                                BorderBrush="#2B3750" BorderThickness="1" BoxShadow="0 6 22 0 #90000000">
-                            <Border CornerRadius="9" ClipToBounds="True">
+                        <Border Height="180" Background="{StaticResource BgBrush}" Margin="0,0,4,4"
+                                BorderBrush="{StaticResource BorderStrongBrush}" BorderThickness="2" BoxShadow="4 4 0 0 #000000">
+                            <Border ClipToBounds="True">
                                 <Panel>
                                     <Image Source="{Binding Cover}" Stretch="Uniform" IsVisible="{Binding HasCover}" />
                                     <StackPanel IsVisible="{Binding !HasCover}" VerticalAlignment="Center" Spacing="6">
@@ -469,15 +442,15 @@
                             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
                                 <PathIcon Data="{StaticResource IconFolder}" Width="13" Height="13"
                                           Foreground="{StaticResource AmberBrush}" VerticalAlignment="Center" />
-                                <TextBlock Grid.Column="1" Text="{Binding CardFolderName}" Classes="h2" FontSize="13"
-                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding CardRoot}" />
+                                <TextBlock Grid.Column="1" Text="{Binding CardFolderName}" FontSize="13" FontWeight="Bold"
+                                           Foreground="{StaticResource TextStrongBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding CardRoot}" />
                                 <Button Grid.Column="2" Classes="icon ghost" Command="{Binding OpenCardFolderCommand}"
                                         ToolTip.Tip="Show in file manager">
                                     <PathIcon Data="{StaticResource IconFolderOpen}" />
                                 </Button>
                             </Grid>
-                            <TextBlock Text="{Binding CardRoot}" Classes="mono" FontSize="10.5" TextWrapping="Wrap" Opacity="0.7" />
-                            <TextBlock Text="{Binding DefinitionName}" Classes="mono" FontSize="10.5" Opacity="0.7" />
+                            <TextBlock Text="{Binding CardRoot}" Classes="mono" FontSize="15" TextWrapping="Wrap" Opacity="0.8" />
+                            <TextBlock Text="{Binding DefinitionName}" Classes="mono" FontSize="15" Opacity="0.8" />
                         </StackPanel>
 
                         <Border Classes="divider" />
@@ -652,18 +625,18 @@
         </Grid>
 
         <!-- ===================================================== Status bar -->
-        <Border Grid.Row="2" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,1,0,0" Padding="12,4"
-                Background="#0D121C" MinHeight="30">
+        <Border Grid.Row="2" BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,2,0,0" Padding="12,4"
+                Background="{StaticResource SurfaceSunkenBrush}" MinHeight="32">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                <Ellipse Classes="led" Classes.error="{Binding StatusIsError}" Classes.busy="{Binding IsBusy}"
-                         Classes.pulse="{Binding IsBusy}" Width="7" Height="7" />
+                <Rectangle Classes="led" Classes.error="{Binding StatusIsError}" Classes.busy="{Binding IsBusy}"
+                         Classes.pulse="{Binding IsBusy}" Width="8" Height="8" />
                 <TextBlock Grid.Column="1" Classes="status" Classes.error="{Binding StatusIsError}" Text="{Binding StatusMessage}"
                            VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="11.5"
                            IsVisible="{Binding !IsBusy}" ToolTip.Tip="{Binding StatusMessage}" />
                 <Grid Grid.Column="1" ColumnDefinitions="Auto,*" ColumnSpacing="12" IsVisible="{Binding IsBusy}">
                     <TextBlock Text="{Binding BusyStatus}" VerticalAlignment="Center" FontSize="11.5" />
                     <ProgressBar Grid.Column="1" Classes="large" Minimum="0" Maximum="100" Value="{Binding BusyPercent}"
-                                 VerticalAlignment="Center" Height="8" MinHeight="8" CornerRadius="4" />
+                                 VerticalAlignment="Center" Height="14" MinHeight="14" Padding="2" />
                 </Grid>
                 <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6">
                     <Button Classes="small" Content="Cancel" Command="{Binding CancelBusyCommand}" IsVisible="{Binding IsBusy}" />

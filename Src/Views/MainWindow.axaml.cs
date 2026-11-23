@@ -18,6 +18,7 @@ public partial class MainWindow : Window, IDialogs
         _viewModel = new MainViewModel(this);
         DataContext = _viewModel;
         InitializeComponent();
+        PixelPerfect.Track(this, 1);
 
         Closing += OnClosing;
         Closed += (_, _) => _viewModel.Dispose();
