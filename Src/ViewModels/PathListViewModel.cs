@@ -35,6 +35,9 @@ public sealed partial class PathListViewModel : ObservableObject
 
     public bool IsEmpty => Items.Count == 0;
 
+    /// <summary>Runtime/BIOS lists (as opposed to ROM lists): only picks the header icon.</summary>
+    public bool IsRuntime => Kind is PathKind.RetroArchRuntime or PathKind.MisterRuntime;
+
     public IEnumerable<string> Values => Items.Select(i => i.Path.Trim()).Where(p => p.Length > 0);
 
     public void Set(IEnumerable<string> values)
