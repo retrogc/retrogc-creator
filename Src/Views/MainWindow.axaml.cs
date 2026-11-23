@@ -23,11 +23,27 @@ public partial class MainWindow : Window, IDialogs
         Closed += (_, _) => _viewModel.Dispose();
     }
 
-    /// <summary>Opens a card given on the command line (folder or .rgc).</summary>
+    /// <summary>Opens a card given on the command line (folder, .rgc, or a card image to view).</summary>
     public void OpenFromArgument(string path)
     {
         if (System.IO.Directory.Exists(path) && Services.CardFolder.FindDefinition(path) is { } definition)
             _viewModel.Open(definition);
+        else if (System.IO.File.Exists(path) && MainViewModel.IsImageFile(path))
+        {
+            // Unpacking shows progress and maybe error dialogs: wait for the window to be shown.
+            if (IsVisible)
+                _ = _viewModel.ViewImageAsync(path);
+            else
+            {
+                void OnOpened(object? sender, EventArgs e)
+                {
+                    Opened -= OnOpened;
+                    _ = _viewModel.ViewImageAsync(path);
+                }
+
+                Opened += OnOpened;
+            }
+        }
         else if (System.IO.File.Exists(path))
             _viewModel.Open(path);
     }

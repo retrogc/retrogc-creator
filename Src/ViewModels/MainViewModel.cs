@@ -383,19 +383,30 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         }
         else if (choice == 1)
         {
-            var temporary = Path.Combine(ViewRoot, Guid.NewGuid().ToString("N"));
-            if (!await ExtractImageAsync(image, temporary))
-            {
-                TryDeleteFolder(temporary);
-                return;
-            }
-
-            DeleteViewFolder();
-            _viewFolder = temporary;
-            if (!await OpenExtractedAsync(temporary, image))
-                DeleteViewFolder();
+            await ViewImageAsync(image);
         }
     }
+
+    /// <summary>Opens a card image read-only (unpacked to a temporary folder).</summary>
+    public async Task ViewImageAsync(string image)
+    {
+        var temporary = Path.Combine(ViewRoot, Guid.NewGuid().ToString("N"));
+        if (!await ExtractImageAsync(image, temporary))
+        {
+            TryDeleteFolder(temporary);
+            return;
+        }
+
+        DeleteViewFolder();
+        _viewFolder = temporary;
+        if (!await OpenExtractedAsync(temporary, image))
+            DeleteViewFolder();
+    }
+
+    /// <summary>True for a card image file (.img.xz or .img), as opposed to a card definition.</summary>
+    public static bool IsImageFile(string path) =>
+        path.EndsWith(".xz", StringComparison.OrdinalIgnoreCase) ||
+        path.EndsWith(".img", StringComparison.OrdinalIgnoreCase);
 
     private bool CanExtract() => IsReadOnly && !IsBusy;
 
