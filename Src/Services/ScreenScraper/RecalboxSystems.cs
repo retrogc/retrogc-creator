@@ -6,26 +6,27 @@ namespace RetroGcCreator.Services.ScreenScraper;
 
 /// <summary>
 /// The Recalbox system (its ROM folder name) of a ScreenScraper system. ScreenScraper gives it
-/// (<c>nom_recalbox</c>) for most systems; this fixes the cases where it is missing, generic or not a name:
+/// (<c>nom_recalbox</c>) for most systems; this fixes the cases where it doesn't fit a card:
 /// <list type="bullet">
-/// <item>arcade boards all say <c>arcade,mame,fba,fba_libretro</c>: on Recalbox the system is the emulator's,
-/// <c>fbneo</c> or <c>mame</c>, chosen from the card's RetroArch core;</item>
-/// <item>a list with a specific entry (<c>…,atomiswave</c>) gives that entry;</item>
-/// <item>a few systems have no name, or a value that isn't one.</item>
+/// <item>arcade systems (MAME and every board under it: CPS-1, Neo-Geo, Cave...) follow the card's RetroArch
+/// core, <c>fbneo</c> or <c>mame</c>, like the cards do; with another core (flycast...) the board's own
+/// system is used (<c>naomi</c>, <c>atomiswave</c>...);</item>
+/// <item>a few systems have no name, a list of names, or a value that isn't one.</item>
 /// </list>
 /// </summary>
 public static class RecalboxSystems
 {
-    /// <summary>Generic arcade entries of ScreenScraper's lists: not a Recalbox system for one game.</summary>
-    private static readonly HashSet<string> GenericArcade = new(StringComparer.OrdinalIgnoreCase)
-        { "arcade", "mame", "fba", "fba_libretro", "fbneo" };
+    /// <summary>ScreenScraper's MAME system: the parent of every arcade system, and the home of games without a board.</summary>
+    public const int MameSystemId = 75;
 
-    /// <summary>ScreenScraper system id → Recalbox system, where ScreenScraper's value is missing.</summary>
+    /// <summary>Generic arcade entries of ScreenScraper's lists: emulators, not the system of one game.</summary>
+    private static readonly HashSet<string> GenericArcade = new(StringComparer.OrdinalIgnoreCase)
+        { "arcade", "mame", "fba", "fba_libretro", "fbneo", "dice" };
+
+    /// <summary>ScreenScraper system id → Recalbox system, where ScreenScraper's value doesn't fit.</summary>
     private static readonly Dictionary<int, string> Overrides = new()
     {
-        [68] = "neogeo", // Neo-Geo MVS
-        [117] = "msx2",  // MSX2+ ("msx,msx2": Recalbox has no "msx")
-        [75] = "",       // MAME: decided by the core, like the other arcade boards
+        [117] = "msx2", // MSX2+ ("msx,msx2": Recalbox has no "msx")
     };
 
     public static string For(SsSystem? system, string retroArchCore)
@@ -33,26 +34,31 @@ public static class RecalboxSystems
         if (system is null)
             return string.Empty;
 
-        if (Overrides.TryGetValue(system.Id, out var name) && name.Length > 0)
-            return name;
-
         var names = system.RecalboxName
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Where(IsSystemName)
             .ToList();
 
-        var specific = names.FirstOrDefault(n => !GenericArcade.Contains(n));
-        if (specific is not null)
-            return specific;
+        if (system.Id == MameSystemId || system.ParentId == MameSystemId)
+            return Arcade(names, retroArchCore);
 
-        return names.Count > 0 || system.Id == 75 ? ArcadeSystem(retroArchCore) : string.Empty;
+        if (Overrides.TryGetValue(system.Id, out var name))
+            return name;
+
+        return names.FirstOrDefault() ?? string.Empty;
     }
 
     /// <summary>Arcade games go in the folder of the emulator that runs them.</summary>
-    private static string ArcadeSystem(string core)
+    private static string Arcade(IReadOnlyList<string> names, string core)
     {
         core = core.Trim().ToLowerInvariant();
-        return core.StartsWith("mame", StringComparison.Ordinal) ? "mame" : "fbneo";
+        if (core.StartsWith("fbneo", StringComparison.Ordinal) || core.StartsWith("fba", StringComparison.Ordinal))
+            return "fbneo";
+        if (core.StartsWith("mame", StringComparison.Ordinal))
+            return "mame";
+
+        // Another core (flycast for Naomi / Atomiswave...): the board's own Recalbox system.
+        return names.FirstOrDefault(n => !GenericArcade.Contains(n)) ?? "fbneo";
     }
 
     /// <summary>Recalbox system names are lower-case folder names ("megadrive", "game.com"…), not labels.</summary>

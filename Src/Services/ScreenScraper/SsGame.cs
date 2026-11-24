@@ -14,7 +14,7 @@ public sealed record SsGenre(bool IsMain, IReadOnlyList<SsText> Names);
 /// <summary>A picture (or video, manual...) of a game. <see cref="Region"/> is empty when it has none.</summary>
 public sealed record SsMedia(string Type, string Region, string Url, string Format);
 
-public sealed record SsSystem(int Id, string Name, string RecalboxName, IReadOnlyList<string> OtherNames)
+public sealed record SsSystem(int Id, int ParentId, string Name, string RecalboxName, IReadOnlyList<string> OtherNames)
 {
     public override string ToString() => Name;
 }
@@ -74,7 +74,8 @@ public sealed record SsGame(
             if (Str(names?[key]) is { Length: > 0 } other)
                 others.Add(other);
         others.AddRange(Str(names?["noms_commun"]).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
-        return name.Length == 0 ? null : new SsSystem(id, name, Str(names?["nom_recalbox"]), others);
+        var parent = int.TryParse(Str(system["parentid"]), out var parentId) ? parentId : 0;
+        return name.Length == 0 ? null : new SsSystem(id, parent, name, Str(names?["nom_recalbox"]), others);
     }
 
     // ------------------------------------------------------------ picking

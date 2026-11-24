@@ -472,7 +472,10 @@ public sealed partial class ScraperViewModel : ObservableObject, IDisposable
             {
                 ScrapeFieldKind.Name => Game.Name(Region),
                 ScrapeFieldKind.Description => Game.Description(Language),
-                ScrapeFieldKind.Platform => Game.SystemName,
+                // Games on the generic MAME system have no board: the manufacturer names the platform.
+                ScrapeFieldKind.Platform => Game.SystemId == RecalboxSystems.MameSystemId && Game.DeveloperOrPublisher.Length > 0
+                    ? Game.DeveloperOrPublisher
+                    : Game.SystemName,
                 ScrapeFieldKind.RecalboxSystem => RecalboxSystems.For(
                     Systems.FirstOrDefault(s => s.Id == Game.SystemId)?.System, _request.RetroArchCore),
                 ScrapeFieldKind.Year => Game.Year(Region),
