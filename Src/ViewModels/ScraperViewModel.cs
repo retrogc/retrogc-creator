@@ -272,13 +272,22 @@ public sealed partial class ScraperViewModel : ObservableObject, IDisposable
         static IEnumerable<string> Split(string names) =>
             names.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+        // Several systems can match (hacks, variants: "Snes - Super Mario World Hacks", CoreGrafX...): they are
+        // children of the main one, so a match whose parent also matches loses, then the oldest (lowest) id wins.
+        static SsSystem? Best(IEnumerable<SsSystem> matches)
+        {
+            var list = matches.ToList();
+            var ids = list.Select(s => s.Id).ToHashSet();
+            return list.OrderBy(s => ids.Contains(s.ParentId) ? 1 : 0).ThenBy(s => s.Id).FirstOrDefault();
+        }
+
         var recalbox = _request.RecalboxSystem.Trim();
         var platform = _request.Current.GetValueOrDefault(ScrapeFieldKind.Platform, string.Empty).Trim();
 
-        if (recalbox.Length > 0 && systems.FirstOrDefault(s => Split(s.RecalboxName).Any(n => Same(n, recalbox))) is { } byRecalbox)
+        if (recalbox.Length > 0 && Best(systems.Where(s => Split(s.RecalboxName).Any(n => Same(n, recalbox)))) is { } byRecalbox)
             return byRecalbox;
         if (platform.Length > 0 &&
-            systems.FirstOrDefault(s => Same(s.Name, platform) || s.OtherNames.Any(n => Same(n, platform))) is { } byPlatform)
+            Best(systems.Where(s => Same(s.Name, platform) || s.OtherNames.Any(n => Same(n, platform)))) is { } byPlatform)
             return byPlatform;
 
         // Arcade emulators have no ScreenScraper system of their own: arcade games are under MAME.
@@ -287,7 +296,7 @@ public sealed partial class ScraperViewModel : ObservableObject, IDisposable
             "fbneo" or "fba" or "fba_libretro" or "fbalpha" or "arcade" or "mame2003" or "mame2003_plus" or "mame2010" => "mame",
             _ => null
         };
-        return alias is null ? null : systems.FirstOrDefault(s => Split(s.RecalboxName).Any(n => Same(n, alias)));
+        return alias is null ? null : Best(systems.Where(s => Split(s.RecalboxName).Any(n => Same(n, alias))));
     }
 
     private bool CanSearchByName() => !IsBusy && SearchName.Trim().Length > 0;
