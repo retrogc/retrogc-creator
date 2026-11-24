@@ -140,6 +140,9 @@ public partial class MainWindow : Window, IDialogs
         await window.ShowDialog(this);
     }
 
+    public Task<ScrapeSelection?> ShowScraperAsync(ScraperViewModel viewModel) =>
+        new ScraperWindow(viewModel).ShowDialog<ScrapeSelection?>(this);
+
     private async Task<IStorageFolder?> StartAsync(string? folder) =>
         string.IsNullOrEmpty(folder) || !System.IO.Directory.Exists(folder)
             ? null

@@ -28,6 +28,9 @@ A desktop app to create and edit game cards without writing JSON or using the co
   to edit and rebuild it. Write to USB works straight from a viewed image.
 - ✏️ **Edit every field**: name, description, platform, year, developer, genre, players, cover,
   RetroArch core / Recalbox system / ROMs / BIOS files, and the optional MiSTer FPGA section.
+- 🔎 **Fill it from [ScreenScraper](https://screenscraper.fr/)**: find the game by its ROM (checksums) or by
+  name, pick the right result, the language and region (World by default), the picture (box, screenshot,
+  logo…), and tick the fields to fill.
 - 📥 **Add the files**: pick a ROM, BIOS, core or cover anywhere on your disk and it is copied into
   the card at the right place. Missing files are listed, one click fills them.
 - 💿 **Build the image**: a `.img.xz` FAT32 image labelled `RETROGC` on a read-only GPT partition, the same as
@@ -57,6 +60,30 @@ library): no `mkfs`, `mtools` or other tools are needed, on either system.
    copied into the card (`games/<system>/` for ROMs and BIOS, `_Console/` or `_Arcade/` for MiSTer).
 4. When the sidebar says **Ready to build**, press **Build image** (saves the card first), then
    **Write to USB**, or flash the `.img.xz` with [balenaEtcher](https://etcher.balena.io/).
+
+### 🔎 Filling a card from ScreenScraper
+
+[**ScreenScraper**](https://screenscraper.fr/) is a huge community database of retro games: names,
+descriptions, release dates, developers, genres, box art, screenshots, logos… The creator can fill a card
+from it in a few clicks:
+
+1. Press **ScreenScraper…** in the General section.
+2. The window identifies the card's first RetroArch ROM by its checksums (CRC32, MD5, SHA1), on the
+   system matching the card's Recalbox system or platform. If the ROM is unknown, or the card has none yet,
+   it searches the **name** instead (type another one and press **Search** if needed).
+3. When several games match, pick the right one in the results.
+4. Choose the **language** (description, genre) and the **region** (name, year, pictures). Region is
+   **World** by default, then the other regions when ScreenScraper has nothing for World.
+5. Choose the **picture**: box (2D / 3D), screenshot, title screen, logo, mix, cartridge… It is saved as the
+   card's PNG cover.
+6. Tick the fields to fill (the card's empty fields are ticked), edit them if needed, press **Fill the card**,
+   then save the card.
+
+| | |
+|---|---|
+| 👤 **Account** | Optional. A free [screenscraper.fr](https://screenscraper.fr/) account gives more requests per day: enter it under **ScreenScraper account** in the window. |
+| ⚙️ **Settings** | Language, region, picture type and account are remembered in `%APPDATA%\retrogc-creator` (Windows) or `~/.config/retrogc-creator` (Linux). |
+| 📊 **Quota** | The window shows how many requests you made today out of your daily limit. |
 
 ### 💽 Opening a card image
 
@@ -97,14 +124,24 @@ dotnet run
 Src/
 ├── 📁 Models/        CardDocument: the .rgc as a JSON tree (keeps unknown fields)
 ├── 📁 Services/      Fat32ImageWriter / FatImageReader, ImageBuilder / ImageExtractor (xz),
-│                     CardFolder, UsbDrives, Flasher
+│                     CardFolder, UsbDrives, Flasher, ScreenScraper/ (api2 client)
 ├── 📁 ViewModels/    MVVM view models (CommunityToolkit.Mvvm)
-├── 📁 Views/         Main window, USB writer window
+├── 📁 Views/         Main window, USB writer window, ScreenScraper window
 └── 📁 Styles/        Theme shared with the launcher
 ```
 
 Release builds are self-contained, trimmed, single-file executables, built by the
 [**release workflow**](.github/workflows/release.yml).
+
+## 🙏 Thanks
+
+A big thank you to [**ScreenScraper**](https://screenscraper.fr/) and its community. For years they have
+gathered, checked and shared the data and artwork of tens of thousands of retro games, and they keep the
+API open to projects like this one. The names, descriptions and pictures the creator fills in come from
+their work.
+
+If the creator saves you time, consider giving back: add or fix data and media on
+[screenscraper.fr](https://screenscraper.fr/), or support the project there to help with its servers.
 
 ## 📄 License
 

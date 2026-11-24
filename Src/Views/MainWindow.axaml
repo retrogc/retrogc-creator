@@ -489,13 +489,20 @@
                     <!-- General -->
                     <Border Grid.ColumnSpan="2" Classes="card general">
                         <StackPanel Spacing="8">
-                            <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10" MinHeight="26">
                                 <Border Classes="badge general">
                                     <PathIcon Data="{StaticResource IconGamepad}" />
                                 </Border>
-                                <TextBlock Text="General" Classes="section" />
-                                <TextBlock Classes="sectionhint" Text="Shown on the launcher screen. Only the name is required." />
-                            </StackPanel>
+                                <TextBlock Grid.Column="1" Text="General" Classes="section" />
+                                <TextBlock Grid.Column="2" Classes="sectionhint" Text="Shown on the launcher screen. Only the name is required." />
+                                <Button Grid.Column="3" Classes="small" Command="{Binding ScrapeCommand}"
+                                        ToolTip.Tip="Fill these fields and the cover from ScreenScraper (by ROM or by name)">
+                                    <StackPanel Orientation="Horizontal" Spacing="4">
+                                        <PathIcon Data="{StaticResource IconSearch}" Foreground="{StaticResource GeneralBrush}" />
+                                        <TextBlock Text="ScreenScraper…" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
                             <Grid ColumnDefinitions="3*,2*" ColumnSpacing="12">
                                 <StackPanel Spacing="8">
                                     <Grid ColumnDefinitions="2*,*" ColumnSpacing="8">

@@ -1,0 +1,256 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:v="using:RetroGcCreator.Views"
+        xmlns:vm="using:RetroGcCreator.ViewModels"
+        x:Class="RetroGcCreator.Views.ScraperWindow"
+        x:DataType="vm:ScraperViewModel"
+        Title="Fill the card from ScreenScraper"
+        Icon="/Assets/Icons/launcher.ico"
+        Width="1060" Height="760" MinWidth="860" MinHeight="600"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.Styles>
+        <Style Selector="ListBox.results">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="Padding" Value="4" />
+        </Style>
+        <Style Selector="ListBox.results ListBoxItem">
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Margin" Value="0,0,0,3" />
+            <Setter Property="Padding" Value="8,6" />
+        </Style>
+        <Style Selector="ListBox.results ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource CyanSoftBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource CyanBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+        <Style Selector="TextBlock.field">
+            <Setter Property="FontFamily" Value="{StaticResource PixelFont}" />
+            <Setter Property="(v:PixelPerfect.FontSize)" Value="8" />
+            <Setter Property="Foreground" Value="{StaticResource TextDimBrush}" />
+            <Setter Property="Margin" Value="0,0,0,5" />
+        </Style>
+        <Style Selector="Border.panel">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="2" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="MinHeight" Value="28" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontFamily" Value="Inter, Arial, sans-serif" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <!-- The theme's ComboBox MinWidth (200) would spill out of the narrower columns here -->
+        <Style Selector="ComboBox">
+            <Setter Property="MinWidth" Value="0" />
+        </Style>
+        <Style Selector="CheckBox.use">
+            <Setter Property="MinWidth" Value="118" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+            <Setter Property="Margin" Value="0,2,0,0" />
+        </Style>
+        <Style Selector="Button.small">
+            <Setter Property="Padding" Value="8,5" />
+            <Setter Property="(v:PixelPerfect.FontSize)" Value="8" />
+        </Style>
+    </Window.Styles>
+
+    <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="24,20">
+
+        <!-- Header -->
+        <StackPanel Spacing="8">
+            <TextBlock Text="SCREENSCRAPER" Classes="eyebrow" />
+            <TextBlock Text="Fill the card from ScreenScraper" Classes="h1" />
+            <UniformGrid Classes="stripe">
+                <Rectangle Fill="{StaticResource MagentaBrush}" />
+                <Rectangle Fill="{StaticResource OrangeBrush}" />
+                <Rectangle Fill="{StaticResource YellowBrush}" />
+                <Rectangle Fill="{StaticResource GreenBrush}" />
+                <Rectangle Fill="{StaticResource CyanBrush}" />
+                <Rectangle Fill="{StaticResource VioletBrush}" />
+            </UniformGrid>
+        </StackPanel>
+
+        <!-- Search -->
+        <StackPanel Grid.Row="1" Spacing="8" Margin="0,14,0,0">
+            <Grid ColumnDefinitions="*,240,Auto,Auto" ColumnSpacing="8">
+                <StackPanel>
+                    <TextBlock Text="NAME" Classes="field" />
+                    <TextBox Text="{Binding SearchName}" PlaceholderText="Game name">
+                        <TextBox.KeyBindings>
+                            <KeyBinding Gesture="Enter" Command="{Binding SearchByNameCommand}" />
+                        </TextBox.KeyBindings>
+                    </TextBox>
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="SYSTEM" Classes="field" />
+                    <ComboBox ItemsSource="{Binding Systems}" SelectedItem="{Binding SelectedSystem}"
+                              HorizontalAlignment="Stretch" MaxDropDownHeight="420" MinHeight="28" />
+                </StackPanel>
+                <Button Grid.Column="2" Classes="primary" VerticalAlignment="Bottom" Command="{Binding SearchByNameCommand}"
+                        ToolTip.Tip="Search ScreenScraper by name (on the chosen system, or all of them)">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="{StaticResource IconSearch}" Width="12" Height="12" Foreground="{StaticResource TextOnAccentBrush}" />
+                        <TextBlock Text="Search" />
+                    </StackPanel>
+                </Button>
+                <Button Grid.Column="3" VerticalAlignment="Bottom" Command="{Binding SearchByRomCommand}"
+                        ToolTip.Tip="Identify the card's first RetroArch ROM by its checksums (needs a system)">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <PathIcon Data="{StaticResource IconSdCard}" Width="12" Height="12" Foreground="{StaticResource CyanBrush}" />
+                        <TextBlock Text="Find by ROM" />
+                    </StackPanel>
+                </Button>
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto,160,Auto,160" ColumnSpacing="8">
+                <TextBlock Text="{Binding RomText}" Classes="mono" FontSize="16" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis" Foreground="{StaticResource TextMutedBrush}" />
+                <TextBlock Grid.Column="1" Text="LANGUAGE" Classes="field" Margin="0" VerticalAlignment="Center" />
+                <ComboBox Grid.Column="2" ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}"
+                          HorizontalAlignment="Stretch" MinHeight="28"
+                          ToolTip.Tip="Language of the description and genre (English when missing)" />
+                <TextBlock Grid.Column="3" Text="REGION" Classes="field" Margin="10,0,0,0" VerticalAlignment="Center" />
+                <ComboBox Grid.Column="4" ItemsSource="{Binding Regions}" SelectedItem="{Binding SelectedRegion}"
+                          HorizontalAlignment="Stretch" MinHeight="28"
+                          ToolTip.Tip="Region of the name, year and pictures (World, then other regions, when missing)" />
+            </Grid>
+        </StackPanel>
+
+        <!-- Results | details -->
+        <Grid Grid.Row="2" ColumnDefinitions="280,*" ColumnSpacing="14" Margin="0,14,0,0">
+            <Grid RowDefinitions="Auto,*">
+                <TextBlock Text="RESULTS" Classes="label" Foreground="{StaticResource CyanBrush}" Margin="0,0,0,8" />
+                <Panel Grid.Row="1">
+                    <ListBox Classes="results" ItemsSource="{Binding Results}" SelectedItem="{Binding SelectedResult}">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate DataType="vm:ScrapeResult">
+                                <StackPanel Spacing="2">
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding Detail}" Classes="mono" FontSize="15" TextWrapping="Wrap"
+                                               Foreground="{StaticResource TextDimBrush}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <TextBlock Text="No result" Classes="hint" HorizontalAlignment="Center" VerticalAlignment="Center"
+                               IsVisible="{Binding NoResults}" />
+                </Panel>
+            </Grid>
+
+            <Grid Grid.Column="1" ColumnDefinitions="*,260" ColumnSpacing="14">
+                <!-- Fields -->
+                <Grid RowDefinitions="Auto,*">
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                        <TextBlock Text="CARD FIELDS" Classes="label" Foreground="{StaticResource MagentaBrush}" />
+                        <TextBlock Grid.Column="1" Text="Loading the details…" Classes="hint" FontSize="11"
+                                   IsVisible="{Binding IsLoadingGame}" />
+                    </Grid>
+                    <Border Grid.Row="1" Classes="panel">
+                        <Panel>
+                            <ScrollViewer HorizontalScrollBarVisibility="Disabled" IsVisible="{Binding HasGame}">
+                                <ItemsControl ItemsSource="{Binding Fields}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="vm:ScrapeField">
+                                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,0,16,10">
+                                                <CheckBox Classes="use" IsChecked="{Binding Use}" IsEnabled="{Binding HasValue}"
+                                                          Content="{Binding Label}"
+                                                          ToolTip.Tip="Put this value in the card" />
+                                                <StackPanel Grid.Column="1" Spacing="3">
+                                                    <TextBox Text="{Binding Value}" IsVisible="{Binding !IsMultiline}" />
+                                                    <TextBox Text="{Binding Value}" IsVisible="{Binding IsMultiline}"
+                                                             AcceptsReturn="True" TextWrapping="Wrap" MinHeight="90" MaxHeight="170"
+                                                             VerticalContentAlignment="Top" />
+                                                    <TextBlock FontSize="11" Foreground="{StaticResource TextFaintBrush}"
+                                                               TextTrimming="CharacterEllipsis" MaxLines="1"
+                                                               ToolTip.Tip="{Binding CurrentText}">
+                                                        <Run Text="Card: " />
+                                                        <Run Text="{Binding CurrentText}" />
+                                                    </TextBlock>
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                            <TextBlock Text="Choose a game in the results." Classes="hint" HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" IsVisible="{Binding !HasGame}" />
+                        </Panel>
+                    </Border>
+                </Grid>
+
+                <!-- Picture -->
+                <Grid Grid.Column="1" RowDefinitions="Auto,Auto,*,Auto,Auto">
+                    <TextBlock Text="COVER PICTURE" Classes="label" Foreground="{StaticResource YellowBrush}" Margin="0,0,0,8" />
+                    <ComboBox Grid.Row="1" ItemsSource="{Binding MediaTypes}" SelectedItem="{Binding SelectedMediaType}"
+                              HorizontalAlignment="Stretch" MinHeight="28" IsEnabled="{Binding HasMedia}"
+                              ToolTip.Tip="The picture ScreenScraper has for this game: box, screenshot, logo…" />
+                    <Border Grid.Row="2" Margin="0,8,0,0" Background="{StaticResource BgBrush}"
+                            BorderBrush="{StaticResource BorderStrongBrush}" BorderThickness="2">
+                        <Panel>
+                            <Image Source="{Binding Preview}" Stretch="Uniform" IsVisible="{Binding HasPreview}" Margin="4" />
+                            <StackPanel IsVisible="{Binding !HasPreview}" VerticalAlignment="Center" Spacing="6">
+                                <PathIcon Data="{StaticResource IconImage}" Width="32" Height="32"
+                                          Foreground="{StaticResource TextFaintBrush}" />
+                                <TextBlock Text="No picture" Classes="hint" HorizontalAlignment="Center"
+                                           IsVisible="{Binding !IsLoadingPreview}" />
+                            </StackPanel>
+                        </Panel>
+                    </Border>
+                    <TextBlock Grid.Row="3" Text="{Binding PreviewText}" Classes="mono" FontSize="15" Margin="0,6,0,0"
+                               TextWrapping="Wrap" Foreground="{StaticResource TextDimBrush}" />
+                    <CheckBox Grid.Row="4" IsChecked="{Binding UseCover}" IsEnabled="{Binding HasPreview}" Margin="0,6,0,0"
+                              Content="Use as the card cover (PNG)" />
+                </Grid>
+            </Grid>
+        </Grid>
+
+        <!-- Settings -->
+        <Expander Grid.Row="3" IsExpanded="{Binding ShowSettings}" Margin="0,14,0,0" HorizontalAlignment="Stretch">
+            <Expander.Header>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <PathIcon Data="{StaticResource IconSettings}" Width="12" Height="12" Foreground="{StaticResource VioletBrush}" />
+                    <TextBlock Text="ScreenScraper account" />
+                </StackPanel>
+            </Expander.Header>
+            <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
+                    <StackPanel>
+                        <TextBlock Text="SCREENSCRAPER USER (OPTIONAL)" Classes="field" />
+                        <TextBox Text="{Binding User}" PlaceholderText="Your screenscraper.fr login" />
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="PASSWORD" Classes="field" />
+                        <TextBox Text="{Binding Password}" PasswordChar="●" />
+                    </StackPanel>
+                    <TextBlock Grid.Column="2" Classes="hint" FontSize="11" VerticalAlignment="Bottom" MaxWidth="260"
+                               TextWrapping="Wrap" Margin="0,0,0,4"
+                               Text="More requests per day. Stored in your user settings folder." />
+                </Grid>
+                <Button Classes="small" Content="Save settings" Command="{Binding SaveSettingsCommand}" HorizontalAlignment="Left" />
+            </StackPanel>
+        </Expander>
+
+        <!-- Status, buttons -->
+        <Grid Grid.Row="4" ColumnDefinitions="*,Auto" ColumnSpacing="12" Margin="0,14,0,0">
+            <StackPanel VerticalAlignment="Center" Spacing="2">
+                <SelectableTextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12"
+                                     Foreground="{StaticResource TextMutedBrush}" IsVisible="{Binding !StatusIsError}" />
+                <SelectableTextBlock Text="{Binding Status}" TextWrapping="Wrap" FontSize="12"
+                                     Foreground="{StaticResource ErrorBrush}" IsVisible="{Binding StatusIsError}" />
+                <TextBlock Text="{Binding QuotaText}" Classes="mono" FontSize="14" Foreground="{StaticResource TextFaintBrush}" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <ProgressBar IsIndeterminate="True" Width="90" Height="10" MinHeight="10" IsVisible="{Binding IsBusy}" />
+                <Button Content="Stop" Command="{Binding CancelCommand}" IsVisible="{Binding IsBusy}" />
+                <Button Classes="ghost" Content="Cancel" Command="{Binding CloseCommand}" IsCancel="True" />
+                <Button Classes="primary" Content="Fill the card" Command="{Binding ApplyCommand}"
+                        ToolTip.Tip="Put the ticked fields (and the picture) in the card. Save the card afterwards." />
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

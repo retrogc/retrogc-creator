@@ -62,13 +62,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasCard), nameof(WindowTitle), nameof(CardFolderName))]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand), nameof(BuildCommand), nameof(FlashCommand), nameof(OpenCardFolderCommand),
-        nameof(ReloadFilesCommand), nameof(DuplicateCommand))]
+        nameof(ReloadFilesCommand), nameof(DuplicateCommand), nameof(ScrapeCommand))]
     public partial string CardRoot { get; set; } = string.Empty;
 
     /// <summary>A card image opened with "Just view": nothing can be saved, "Extract…" makes an editable copy.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(WindowTitle), nameof(IsEditable))]
-    [NotifyCanExecuteChangedFor(nameof(SaveCommand), nameof(BuildCommand), nameof(ExtractCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveCommand), nameof(BuildCommand), nameof(ExtractCommand), nameof(ScrapeCommand))]
     public partial bool IsReadOnly { get; set; }
 
     public bool IsEditable => !IsReadOnly;
@@ -110,7 +110,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(BuildCommand), nameof(FlashCommand), nameof(SaveCommand),
         nameof(NewCardCommand), nameof(OpenFolderCommand),
-        nameof(OpenImageCommand), nameof(ExtractCommand), nameof(DuplicateCommand))]
+        nameof(OpenImageCommand), nameof(ExtractCommand), nameof(DuplicateCommand), nameof(ScrapeCommand))]
     public partial bool IsBusy { get; set; }
 
     [ObservableProperty] public partial double BusyPercent { get; set; }
@@ -655,6 +655,112 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
         var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folder));
         return full == root || full.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.Ordinal);
+    }
+
+    // ------------------------------------------------------------ screenscraper
+
+    private bool CanScrape() => HasCard && !IsBusy && !IsReadOnly;
+
+    /// <summary>Opens the ScreenScraper window, then puts the chosen fields and picture in the card.</summary>
+    [RelayCommand(CanExecute = nameof(CanScrape))]
+    private async Task ScrapeAsync()
+    {
+        var current = new Dictionary<ScrapeFieldKind, string>
+        {
+            [ScrapeFieldKind.Name] = Editor.Name,
+            [ScrapeFieldKind.Description] = Editor.Description,
+            [ScrapeFieldKind.Platform] = Editor.Platform,
+            [ScrapeFieldKind.Year] = Editor.Year,
+            [ScrapeFieldKind.Developer] = Editor.Developer,
+            [ScrapeFieldKind.Genre] = Editor.Genre,
+            [ScrapeFieldKind.Players] = Editor.Players
+        };
+        var rom = Editor.RetroArchRoms.Items.FirstOrDefault(r => r.State == PathState.Present) is { } entry
+            ? CardFolder.Resolve(CardRoot, entry.Path.Trim().TrimStart('/'))
+            : null;
+
+        using var viewModel = new ScraperViewModel(new ScrapeRequest(current, Editor.System, rom,
+            Editor.Image.State == PathState.Present));
+        var selection = await _dialogs.ShowScraperAsync(viewModel);
+        if (selection is null)
+            return;
+
+        foreach (var (kind, value) in selection.Fields)
+        {
+            switch (kind)
+            {
+                case ScrapeFieldKind.Name: Editor.Name = value; break;
+                case ScrapeFieldKind.Description: Editor.Description = value; break;
+                case ScrapeFieldKind.Platform: Editor.Platform = value; break;
+                case ScrapeFieldKind.Year: Editor.Year = value; break;
+                case ScrapeFieldKind.Developer: Editor.Developer = value; break;
+                case ScrapeFieldKind.Genre: Editor.Genre = value; break;
+                case ScrapeFieldKind.Players: Editor.Players = value; break;
+            }
+        }
+
+        var cover = selection.Cover is not null && await SaveScrapedCoverAsync(selection.Cover, selection.CoverLabel);
+        var parts = selection.Fields.Count > 0
+            ? $"{selection.Fields.Count} field{(selection.Fields.Count > 1 ? "s" : string.Empty)}"
+            : string.Empty;
+        if (cover)
+            parts += (parts.Length > 0 ? " and " : string.Empty) + "the cover";
+        if (parts.Length > 0)
+            SetStatus($"Filled from ScreenScraper ({selection.GameName}): {parts}." +
+                      (selection.Fields.Count > 0 ? " Save the card to keep them." : string.Empty));
+    }
+
+    /// <summary>
+    /// Writes the picture as the card cover, as PNG: over the current cover when it is a PNG, otherwise as
+    /// <c>&lt;definition name&gt;.png</c> at the card root (like a duplicated card's cover).
+    /// </summary>
+    private async Task<bool> SaveScrapedCoverAsync(byte[] picture, string label)
+    {
+        var old = Editor.Image.Path.Trim();
+        var current = old.TrimStart('/');
+        var relative = current.EndsWith(".png", StringComparison.OrdinalIgnoreCase) &&
+                       CardFolder.Check(CardRoot, current) is PathState.Present or PathState.Missing
+            ? current
+            : Path.GetFileNameWithoutExtension(DefinitionPath) + ".png";
+        var target = CardFolder.Resolve(CardRoot, relative);
+        if (target is null)
+            return false;
+
+        if (File.Exists(target) && !await _dialogs.ConfirmAsync("Replace the cover?",
+                $"{relative} is already in the card. Replace it with the ScreenScraper picture ({label})?", "Replace"))
+            return false;
+
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            var temporary = target + ".tmp";
+            using (var bitmap = new Bitmap(new MemoryStream(picture)))
+            using (var stream = File.Create(temporary))
+                bitmap.Save(stream, PngBitmapEncoderOptions.Default);
+            File.Move(temporary, target, overwrite: true);
+        }
+        catch (Exception exception)
+        {
+            Log.Error("ScreenScraper cover", exception);
+            await _dialogs.ShowErrorAsync("Could not save the cover", exception.Message);
+            return false;
+        }
+
+        if (string.Equals(old, relative, StringComparison.Ordinal))
+        {
+            Editor.Image.Refresh();
+            UpdateCover();
+        }
+        else
+        {
+            // Changing the path reloads the sidebar cover and marks the card changed.
+            Editor.Image.Path = relative;
+        }
+
+        _context.FilesChanged();
+        if (old.Length > 0 && !string.Equals(old, relative, StringComparison.Ordinal))
+            await _context.OfferDeleteIfUnusedAsync(old);
+        return true;
     }
 
     // ------------------------------------------------------------ build / flash

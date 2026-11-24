@@ -26,4 +26,7 @@ public interface IDialogs
 
     /// <summary>Opens the "write to USB" window for an image.</summary>
     Task ShowFlashAsync(string image);
+
+    /// <summary>Opens the ScreenScraper window; returns what to put in the card, or null when cancelled.</summary>
+    Task<ScrapeSelection?> ShowScraperAsync(ScraperViewModel viewModel);
 }
