@@ -4,7 +4,7 @@
 
 # 🛠️ Retro Game Card: Creator
 
-### Make [Retro Game Card](https://github.com/retrogc/retrogc-launcher) game cards, on Windows and Linux
+### Make [Retro Game Card](https://github.com/retrogc/retrogc-launcher), on Windows and Linux
 
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?style=flat-square&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![Avalonia](https://img.shields.io/badge/UI-Avalonia%2012-8B44AC?style=flat-square)](https://avaloniaui.net/)
