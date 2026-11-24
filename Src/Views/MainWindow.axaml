@@ -403,7 +403,8 @@
             <Border BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,0,2,0" Background="{StaticResource SurfaceSunkenBrush}">
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Margin="12,12" Spacing="10">
-                        <Border Height="180" Background="{StaticResource BgBrush}" Margin="0,0,4,4"
+                        <!-- Square, like the launcher cover frame (sidebar 250 - margins) -->
+                        <Border Height="222" Background="{StaticResource BgBrush}" Margin="0,0,4,4"
                                 BorderBrush="{StaticResource BorderStrongBrush}" BorderThickness="2" BoxShadow="4 4 0 0 #000000">
                             <Border ClipToBounds="True">
                                 <Panel>

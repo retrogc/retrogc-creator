@@ -670,6 +670,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             [ScrapeFieldKind.Name] = Editor.Name,
             [ScrapeFieldKind.Description] = Editor.Description,
             [ScrapeFieldKind.Platform] = Editor.Platform,
+            [ScrapeFieldKind.RecalboxSystem] = Editor.System,
             [ScrapeFieldKind.Year] = Editor.Year,
             [ScrapeFieldKind.Developer] = Editor.Developer,
             [ScrapeFieldKind.Genre] = Editor.Genre,
@@ -679,8 +680,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             ? CardFolder.Resolve(CardRoot, entry.Path.Trim().TrimStart('/'))
             : null;
 
-        using var viewModel = new ScraperViewModel(new ScrapeRequest(current, Editor.System, rom,
-            Editor.Image.State == PathState.Present));
+        using var viewModel = new ScraperViewModel(new ScrapeRequest(current, Editor.System, Editor.Core, rom));
         var selection = await _dialogs.ShowScraperAsync(viewModel);
         if (selection is null)
             return;
@@ -692,6 +692,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
                 case ScrapeFieldKind.Name: Editor.Name = value; break;
                 case ScrapeFieldKind.Description: Editor.Description = value; break;
                 case ScrapeFieldKind.Platform: Editor.Platform = value; break;
+                case ScrapeFieldKind.RecalboxSystem: Editor.System = value; break;
                 case ScrapeFieldKind.Year: Editor.Year = value; break;
                 case ScrapeFieldKind.Developer: Editor.Developer = value; break;
                 case ScrapeFieldKind.Genre: Editor.Genre = value; break;

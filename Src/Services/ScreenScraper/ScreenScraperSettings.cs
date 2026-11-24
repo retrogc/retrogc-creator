@@ -22,7 +22,8 @@ public sealed class ScreenScraperSettings
 
     public string Language { get; set; } = "en";
     public string Region { get; set; } = "wor";
-    public string MediaType { get; set; } = "box-2D";
+    /// <summary>Cover picture type: the "mix" (box, screenshot and logo together) fits the square cover best.</summary>
+    public string MediaType { get; set; } = "mixrbv2";
 
     /// <summary>The developer login built into the app (see <see cref="ScreenScraperDev"/>).</summary>
     public static bool HasDevLogin => ScreenScraperDev.Id.Length > 0 && ScreenScraperDev.Password.Length > 0;
@@ -39,7 +40,8 @@ public sealed class ScreenScraperSettings
             settings.Password = SsGame.Str(json["password"]);
             if (SsGame.Str(json["language"]) is { Length: > 0 } language) settings.Language = language;
             if (SsGame.Str(json["region"]) is { Length: > 0 } region) settings.Region = region;
-            if (SsGame.Str(json["media"]) is { Length: > 0 } media) settings.MediaType = media;
+            // "cover" replaced "media" when the default became the mix: older saved choices are dropped.
+            if (SsGame.Str(json["cover"]) is { Length: > 0 } media) settings.MediaType = media;
         }
         catch (Exception exception)
         {
@@ -60,7 +62,7 @@ public sealed class ScreenScraperSettings
                 ["password"] = Password,
                 ["language"] = Language,
                 ["region"] = Region,
-                ["media"] = MediaType
+                ["cover"] = MediaType
             };
             File.WriteAllText(FilePath, json.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
         }

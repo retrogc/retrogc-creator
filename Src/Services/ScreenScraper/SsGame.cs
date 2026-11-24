@@ -137,7 +137,7 @@ public sealed record SsGame(
 
     private static readonly List<string> MediaOrder =
     [
-        "box-2D", "box-3D", "mixrbv2", "mixrbv1", "ss", "sstitle", "fanart", "wheel", "wheel-hd", "wheel-carbon",
+        "mixrbv2", "mixrbv1", "box-2D", "box-3D", "ss", "sstitle", "fanart", "wheel", "wheel-hd", "wheel-carbon",
         "wheel-steel", "screenmarquee", "screenmarqueesmall", "marquee", "support-2D", "box-2D-back", "box-2D-side"
     ];
 

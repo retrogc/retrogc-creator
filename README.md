@@ -74,9 +74,10 @@ from it in a few clicks:
 3. When several games match, pick the right one in the results.
 4. Choose the **language** (description, genre) and the **region** (name, year, pictures). Region is
    **World** by default, then the other regions when ScreenScraper has nothing for World.
-5. Choose the **picture**: box (2D / 3D), screenshot, title screen, logo, mix, cartridge… It is saved as the
-   card's PNG cover.
-6. Tick the fields to fill (the card's empty fields are ticked), edit them if needed, press **Fill the card**,
+5. Choose the **picture**: **Mix (v2)** by default (screenshot, box and logo in one square picture: it fits
+   the launcher's square cover frame exactly), or box (2D / 3D), screenshot, title screen, logo… It is saved as
+   the card's PNG cover.
+6. Everything ScreenScraper has is ticked: untick what you want to keep, edit values if needed, press **Fill the card**,
    then save the card.
 
 | | |

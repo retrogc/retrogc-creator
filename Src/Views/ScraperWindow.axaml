@@ -50,7 +50,7 @@
             <Setter Property="MinWidth" Value="0" />
         </Style>
         <Style Selector="CheckBox.use">
-            <Setter Property="MinWidth" Value="118" />
+            <Setter Property="Width" Value="150" />
             <Setter Property="VerticalAlignment" Value="Top" />
             <Setter Property="Margin" Value="0,2,0,0" />
         </Style>

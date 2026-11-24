@@ -17,6 +17,7 @@ public enum ScrapeFieldKind
 {
     Name,
     Platform,
+    RecalboxSystem,
     Year,
     Developer,
     Genre,
@@ -28,8 +29,8 @@ public enum ScrapeFieldKind
 public sealed record ScrapeRequest(
     IReadOnlyDictionary<ScrapeFieldKind, string> Current,
     string RecalboxSystem,
-    string? RomPath,
-    bool HasCover);
+    string RetroArchCore,
+    string? RomPath);
 
 /// <summary>What the user chose to apply: the ticked fields, and the cover picture (or null).</summary>
 public sealed record ScrapeSelection(
@@ -116,7 +117,8 @@ public sealed partial class ScraperViewModel : ObservableObject, IDisposable
 
         foreach (var (kind, label) in new[]
                  {
-                     (ScrapeFieldKind.Name, "Name"), (ScrapeFieldKind.Platform, "Platform"), (ScrapeFieldKind.Year, "Year"),
+                     (ScrapeFieldKind.Name, "Name"), (ScrapeFieldKind.Platform, "Platform"),
+                     (ScrapeFieldKind.RecalboxSystem, "Recalbox system"), (ScrapeFieldKind.Year, "Year"),
                      (ScrapeFieldKind.Developer, "Developer"), (ScrapeFieldKind.Genre, "Genre"),
                      (ScrapeFieldKind.Players, "Players"), (ScrapeFieldKind.Description, "Description")
                  })
@@ -130,8 +132,8 @@ public sealed partial class ScraperViewModel : ObservableObject, IDisposable
         User = _settings.User;
         Password = _settings.Password;
 
-        // A card without cover gets the picture ticked; one with a cover keeps it unless ticked.
-        UseCover = !request.HasCover;
+        // Opening ScreenScraper means taking its data: everything it has is ticked, untick what to keep.
+        UseCover = true;
         _ready = true;
     }
 
@@ -471,6 +473,8 @@ public sealed partial class ScraperViewModel : ObservableObject, IDisposable
                 ScrapeFieldKind.Name => Game.Name(Region),
                 ScrapeFieldKind.Description => Game.Description(Language),
                 ScrapeFieldKind.Platform => Game.SystemName,
+                ScrapeFieldKind.RecalboxSystem => RecalboxSystems.For(
+                    Systems.FirstOrDefault(s => s.Id == Game.SystemId)?.System, _request.RetroArchCore),
                 ScrapeFieldKind.Year => Game.Year(Region),
                 ScrapeFieldKind.Developer => Game.DeveloperOrPublisher,
                 ScrapeFieldKind.Genre => Game.Genre(Language),
@@ -481,8 +485,7 @@ public sealed partial class ScraperViewModel : ObservableObject, IDisposable
             if (!field.HasValue)
                 field.Use = false;
             else if (!keepUse)
-                // Empty card fields are filled, the ones already written are kept unless ticked.
-                field.Use = field.Current.Trim().Length == 0;
+                field.Use = true;
         }
     }
 
